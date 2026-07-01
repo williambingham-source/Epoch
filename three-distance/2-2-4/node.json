@@ -2,8 +2,8 @@
   "id": "9b5f1371-8928-4bad-b25e-09d398813b12",
   "title": "2+2=4",
   "description": "The arithmetic identity 2+2=4, established from the Peano axioms via repeated application of the successor function.",
-  "status": "Hypothesis",
+  "status": "Theorem",
   "validationPath": [],
   "createdAt": "2026-07-01T01:51:07.014Z",
-  "updatedAt": "2026-07-01T01:52:31.203Z"
+  "updatedAt": "2026-07-01T02:18:15.737Z"
 }
