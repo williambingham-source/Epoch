@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "epoch": {
+      "command": "node",
+      "args": ["C:\\Users\\The Binghams\\OneDrive\\Desktop\\Epoch\\dist\\mcp\\server.js"]
+    }
+  }
+}

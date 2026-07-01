@@ -1,0 +1,15 @@
+{
+  "id": "553d8ea6-65e9-4364-87cd-cb951baec95e",
+  "title": "Proof",
+  "description": "Complete proof of the three-distance theorem via the Euclidean algorithm.",
+  "status": "Hypothesis",
+  "validationPath": [
+    {
+      "title": "Theorem Statement",
+      "status": "Hypothesis",
+      "nodePath": "theorem-statement"
+    }
+  ],
+  "createdAt": "2026-06-30T04:41:42.033Z",
+  "updatedAt": "2026-06-30T04:42:18.880Z"
+}

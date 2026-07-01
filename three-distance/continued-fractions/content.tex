@@ -1,0 +1,62 @@
+\section{Continued Fractions and the Gap Structure}
+
+The continued fraction expansion of $\alpha$ is not just a tool in the proof---it
+is the \emph{exact} dictionary between arithmetic and geometry in the three-distance theorem.
+
+\subsection*{Continued Fraction Recap}
+
+Every irrational $\alpha \in (0,1)$ has a unique continued fraction expansion
+\[
+  \alpha = \cfrac{1}{a_1 + \cfrac{1}{a_2 + \cfrac{1}{a_3 + \cdots}}} = [0; a_1, a_2, a_3, \ldots]
+\]
+with partial quotients $a_k \in \mathbb{N}$.  The \emph{convergents} $p_k/q_k = [0; a_1, \ldots, a_k]$
+are the best rational approximations to $\alpha$ and satisfy
+\[
+  |q_k \alpha - p_k| = \|q_k \alpha\| \;<\; \frac{1}{q_{k+1}}.
+\]
+
+\subsection*{Denominators as Transition Points}
+
+\begin{theorem}
+  The gap structure of $S_n(\alpha)$ transitions from two lengths to three lengths
+  (and back to two) precisely at the \emph{convergent denominators} $q_k$.
+  Concretely:
+  \begin{itemize}
+    \item For $n = q_k$: exactly \textbf{two} distinct gap lengths.
+    \item For $q_k < n < q_{k+1}$: exactly \textbf{three} distinct gap lengths,
+          with the third being $L_k - \ell_k = \|q_{k-1}\alpha\| - (n - q_k)\|q_k\alpha\|$... adjusted.
+    \item At $n = q_{k+1}$: back to \textbf{two} gap lengths.
+  \end{itemize}
+\end{theorem}
+
+\subsection*{The Role of Partial Quotients}
+
+Large partial quotients $a_k$ mean $q_{k+1} = a_k q_k + q_{k-1}$ is much larger than $q_k$.
+During the long interval $n \in (q_k, q_{k+1})$, the three-gap structure persists,
+with the longest gap $L_k$ being split $a_k$ times before the new long gap $L_{k+1}$
+takes over.  Thus:
+\begin{itemize}
+  \item \textbf{Large $a_k$}: the three-gap regime lasts a long time; $\alpha$ is
+        ``well approximated'' by $p_k/q_k$.
+  \item \textbf{All $a_k = 1$}: this is the golden ratio $\varphi = [0;1,1,1,\ldots]$,
+        where transitions happen as often as possible (Fibonacci denominators),
+        and at each transition the two gap lengths are in ratio $1:\varphi$.
+\end{itemize}
+
+\subsection*{Sturmian Sequences}
+
+The three-distance theorem has a combinatorial shadow: encode each gap as a letter
+($\mathtt{S}$ for short, $\mathtt{L}$ for long).  Reading the gaps in order around
+the circle gives a \emph{Sturmian word}---an infinite binary sequence of minimal
+complexity that is aperiodic yet highly structured.  The three-distance property
+is equivalent to the statement that Sturmian words have \emph{exactly two distinct
+letter frequencies}, differing by $1/n$ at each stage.
+
+\subsection*{The Farey Graph Connection}
+
+The denominators $q_k$ are the vertices of the Stern--Brocot tree (equivalently,
+the Farey graph) visited by the continued fraction algorithm.  The gap lengths
+$\|q_k \alpha\|$ and $\|q_{k-1}\alpha\|$ are the two \emph{Farey neighbours} of
+$\alpha$ at resolution $q_k$.  The three-distance theorem can thus be read as a
+statement about the Farey graph: at every resolution, $\alpha$ sits in a Farey
+interval whose endpoints provide the two (or three) gap lengths.

@@ -1,0 +1,15 @@
+{
+  "id": "d911d41a-8ba9-4d8e-a90e-2e924a411fa0",
+  "title": "Theorem Statement",
+  "description": "Formal statement of the three-distance theorem with necessary definitions.",
+  "status": "Hypothesis",
+  "validationPath": [
+    {
+      "title": "Introduction",
+      "status": "Sketch",
+      "nodePath": "introduction"
+    }
+  ],
+  "createdAt": "2026-06-30T04:41:39.461Z",
+  "updatedAt": "2026-06-30T04:42:18.800Z"
+}

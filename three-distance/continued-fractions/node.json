@@ -1,0 +1,15 @@
+{
+  "id": "074ea552-fb8c-4125-b418-d44ee72ff45d",
+  "title": "Continued Fractions",
+  "description": "How the continued fraction expansion of α controls the gap structure.",
+  "status": "Hypothesis",
+  "validationPath": [
+    {
+      "title": "Theorem Statement",
+      "status": "Hypothesis",
+      "nodePath": "theorem-statement"
+    }
+  ],
+  "createdAt": "2026-06-30T04:41:45.187Z",
+  "updatedAt": "2026-06-30T04:42:18.952Z"
+}

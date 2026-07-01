@@ -1,0 +1,54 @@
+{
+  "name": "epoch",
+  "version": "0.2.0",
+  "description": "Research platform with Git-based local storage",
+  "type": "module",
+  "main": "./dist/extension/extension.js",
+  "types": "dist/index.d.ts",
+  "engines": {
+    "vscode": "^1.90.0",
+    "node": ">=18.0.0"
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "epoch.openWorkspace",
+        "title": "Open Workspace",
+        "category": "Epoch"
+      }
+    ]
+  },
+  "exports": {
+    ".": "./dist/index.js",
+    "./core/*": "./dist/core/*.js",
+    "./tools/*": "./dist/tools/*.js",
+    "./types/*": "./dist/types/*.js"
+  },
+  "bin": {
+    "epoch-mcp": "dist/mcp/server.js"
+  },
+  "scripts": {
+    "build": "tsc && vite build",
+    "build:lib": "tsc",
+    "build:web": "vite build",
+    "dev": "tsc --watch",
+    "mcp": "node dist/mcp/server.js"
+  },
+  "dependencies": {
+    "@isomorphic-git/lightning-fs": "^4.6.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "isomorphic-git": "^1.27.0",
+    "pdfjs-dist": "^6.1.200",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@types/vscode": "^1.125.0",
+    "@vitejs/plugin-react": "^6.0.3",
+    "typescript": "^5.4.0",
+    "vite": "^8.1.0"
+  }
+}

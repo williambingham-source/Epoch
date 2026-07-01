@@ -1,0 +1,71 @@
+// Shared type declarations for the webview ↔ extension message protocol.
+// Re-declares core types so the browser bundle never imports Node.js-only modules.
+// Keep in sync with src/types/*.ts manually.
+
+export type ProjectStatus = 'Sketch' | 'Conjecture' | 'Hypothesis' | 'Theorem';
+export const PROJECT_STATUSES: ProjectStatus[] = [
+  'Sketch',
+  'Conjecture',
+  'Hypothesis',
+  'Theorem',
+];
+
+export interface NodeDependency {
+  title: string;
+  status: ProjectStatus;
+  nodePath: string;
+}
+
+export interface ResearchNode {
+  id: string;
+  title: string;
+  description?: string;
+  status: ProjectStatus;
+  validationPath: NodeDependency[];
+  createdAt: string;
+  updatedAt: string;
+  tags?: string[];
+  metadata?: Record<string, unknown>;
+}
+
+export interface NodeEntry {
+  path: string;
+  node: ResearchNode;
+}
+
+export interface Manifest {
+  id: string;
+  name: string;
+  description?: string;
+  author: { name: string; email: string };
+  createdAt: string;
+}
+
+export interface CompileResult {
+  success: boolean;
+  outputPath?: string;
+  texFiles: string[];
+  errors: string[];
+  stdout?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Webview → Extension
+// ---------------------------------------------------------------------------
+export type ToExtension =
+  | { type: 'ready' }
+  | { type: 'navigateTo'; nodePath: string | null }
+  | { type: 'saveNode'; nodePath: string; node: ResearchNode }
+  | { type: 'addNode'; parentPath: string | null; title: string; description?: string }
+  | { type: 'compile' }
+  | { type: 'openFolder'; nodePath: string };
+
+// ---------------------------------------------------------------------------
+// Extension → Webview
+// ---------------------------------------------------------------------------
+export type ToWebview =
+  | { type: 'init'; workspaceDir: string; manifest: Manifest; nodes: NodeEntry[] }
+  | { type: 'nodes'; nodes: NodeEntry[] }
+  | { type: 'compileResult'; result: CompileResult }
+  | { type: 'pdfData'; base64: string; fileName: string }
+  | { type: 'error'; message: string };
