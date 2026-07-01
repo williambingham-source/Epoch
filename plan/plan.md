@@ -78,14 +78,14 @@ Every workspace is a single Git repository. Layout:
 
 ---
 
-## Phase 2 — Fractal Workspace Schema
+## Phase 2 — Fractal Workspace Schema ✅
 
 Migrate from a single `project.json` per repo to the Fractal Workspace layout.
 
 **Deliverables:**
-- [ ] `src/types/manifest.ts` — `Manifest` interface + type guard
-- [ ] `src/types/node.ts` — `ResearchNode` interface + type guard (replaces `Project`)
-- [ ] `src/core/workspace.ts` — Node.js functions:
+- [x] `src/types/manifest.ts` — `Manifest` interface + type guard
+- [x] `src/types/node.ts` — `ResearchNode` interface + type guard (replaces `Project`)
+- [x] `src/core/workspace.ts` — Node.js functions:
   - `initWorkspace(dir, name, author)` → writes `manifest.json`, first Git commit
   - `addNode(workspaceDir, parentPath, title)` → creates node folder + `node.json`
   - `moveNode(workspaceDir, fromPath, toPath)` → renames folder + Git commit
@@ -93,33 +93,37 @@ Migrate from a single `project.json` per repo to the Fractal Workspace layout.
   - `writeNode(nodePath, node, commitMessage?)` → writes + commits
   - `readManifest(workspaceDir)` → parses `manifest.json`
   - `listNodes(workspaceDir)` → walks all `node.json` files, returns flat list
-- [ ] `src/tools/dag.ts` — DAG traversal helpers (topological sort, cycle detection,
+- [x] `src/tools/dag.ts` — DAG traversal helpers (topological sort, cycle detection,
   path-to-root)
-- [ ] Update MCP server with new tools:
+- [x] Update MCP server with new tools:
   - `init_workspace` · `add_node` · `move_node` · `read_node` · `write_node`
   - `list_nodes` · `get_workspace_history`
-- [ ] Update LaTeX compiler to walk `node.json` `validationPath` instead of `project.json`
+- [x] Update LaTeX compiler to walk `node.json` `validationPath` instead of `project.json`
 
 ---
 
-## Phase 3 — VS Code Webview
+## Phase 3 — VS Code Webview ✅
 
 Build the primary UI as a VS Code extension with a Webview panel.
 
 **Deliverables:**
-- [ ] `src/extension/` — VS Code extension entry point (`extension.ts`)
+- [x] `src/extension/` — VS Code extension entry point (`extension.ts`)
   - Registers `epoch.openWorkspace` command
   - Opens a Webview panel
   - Handles message passing between Webview ↔ extension host
-- [ ] `src/webview/` — React (or Svelte) app bundled separately (Vite)
+- [x] `src/webview/` — React app bundled separately (Vite)
   - **Breadcrumb bar** — current node path, clickable ancestors
-  - **Node editor** — title, status dropdown, description, tags
-  - **Dependency Graph Sidebar** — immediate children rendered as cards; click to
-    navigate, drag to re-parent
-  - **Compile button** — calls `compile_project` via extension host, shows result
-- [ ] `package.json` additions — `vscode` engine, `activationEvents`, `contributes`
-- [ ] `vite.config.ts` — bundles the Webview app into `dist/webview/`
-- [ ] Extension build pipeline (esbuild or tsc for extension host, Vite for webview)
+  - **Node editor** — title, status dropdown, description, tags, validation path
+  - **Children sidebar** — immediate children rendered as cards; click to navigate, add new
+  - **Compile panel** — compiles workspace to PDF via Docker/pdflatex, shows result
+  - **PDF viewer** — renders compiled PDF in-webview via pdf.js (lazy-loaded)
+- [x] `package.json` additions — `vscode` engine, `activationEvents`, `contributes`
+- [x] `vite.config.ts` — bundles the Webview app into `dist/webview/`
+- [x] Extension build pipeline (tsc for extension host, Vite for webview)
+
+**Sample workspace:** `three-distance/` — six-node workspace on the Three-Distance
+Theorem (Steinhaus 1958), compiles to a 6-page PDF covering history, statement,
+proof, continued fractions, and examples.
 
 ---
 
