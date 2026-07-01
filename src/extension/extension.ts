@@ -10,6 +10,7 @@ import {
 } from '../core/workspace.js';
 import { compileWorkspace } from '../tools/latex-compiler.js';
 import { getRemoteInfo, pushWorkspace, pullWorkspace } from '../core/sync.js';
+import { openReview } from '../tools/review.js';
 import type { ToExtension, ToWebview, ResearchNode } from '../webview/types.js';
 
 // ---------------------------------------------------------------------------
@@ -238,6 +239,33 @@ function createPanel(context: vscode.ExtensionContext, workspaceDir: string): vs
 
           case 'openExternal': {
             void vscode.env.openExternal(vscode.Uri.parse(msg.url));
+            break;
+          }
+
+          case 'openReview': {
+            // Get the remote URL (has credentials embedded for the API call)
+            const remoteData = await getRemoteInfo(workspaceDir);
+            if (!remoteData.url) {
+              void panel.webview.postMessage({
+                type: 'error',
+                message: 'No git remote configured — push to a Gitea remote first.',
+              } satisfies ToWebview);
+              break;
+            }
+            const reviewInfo = await openReview({
+              workspaceDir,
+              nodePath: msg.nodePath,
+              proposedNode: msg.node as Parameters<typeof openReview>[0]['proposedNode'],
+              remoteUrl: remoteData.url,
+            });
+            void panel.webview.postMessage({
+              type: 'reviewOpened',
+              info: reviewInfo,
+            } satisfies ToWebview);
+            // Refresh remote info (new branch exists now)
+            void getRemoteInfo(workspaceDir).then((info) => {
+              void panel.webview.postMessage({ type: 'remoteInfo', info } satisfies ToWebview);
+            });
             break;
           }
         }

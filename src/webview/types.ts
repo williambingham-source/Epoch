@@ -68,6 +68,13 @@ export interface SyncResult {
   details?: string;
 }
 
+export interface ReviewInfo {
+  prNumber: number;
+  url: string;
+  branch: string;
+  title: string;
+}
+
 // ---------------------------------------------------------------------------
 // Webview → Extension
 // ---------------------------------------------------------------------------
@@ -80,7 +87,8 @@ export type ToExtension =
   | { type: 'openFolder'; nodePath: string }
   | { type: 'sync'; action: 'push' | 'pull' }
   | { type: 'getRemoteInfo' }
-  | { type: 'openExternal'; url: string };
+  | { type: 'openExternal'; url: string }
+  | { type: 'openReview'; nodePath: string; node: ResearchNode };
 
 // ---------------------------------------------------------------------------
 // Extension → Webview
@@ -92,4 +100,5 @@ export type ToWebview =
   | { type: 'pdfData'; base64: string; fileName: string }
   | { type: 'remoteInfo'; info: RemoteInfo }
   | { type: 'syncResult'; result: SyncResult; action: 'push' | 'pull' }
+  | { type: 'reviewOpened'; info: ReviewInfo }
   | { type: 'error'; message: string };

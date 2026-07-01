@@ -153,20 +153,21 @@ git push origin master
 
 ---
 
-## Phase 4 — Sync & Collaboration
+## Phase 4 — Sync & Collaboration ✅ (partial)
 
 Add Git remote sync and lay groundwork for real-time collaboration.
 
 **Deliverables:**
-- [ ] `src/core/sync.ts` — wraps isomorphic-git push/pull/fetch with auth helpers
-  - Supports GitHub token, SSH key (via http plugin), and unauthenticated Gitea
-- [ ] Webview "Sync" panel — remote URL config, push/pull status, conflict summary
-- [ ] `src/tools/review.ts` — GitHub/Gitea API client:
-  - `openReviewRequest(node, fromStatus, toStatus)` → creates a PR
-  - `mergeReview(prId)` → merges PR, promotes node to Theorem locally
-- [ ] Yjs integration scaffold (`src/core/realtime.ts`) — provider setup, awareness
-  cursors, deferred until a collaborator is online
-- [ ] MCP tools: `push_workspace` · `pull_workspace` · `open_review` · `merge_review`
+- [x] `src/core/sync.ts` — system-git push/pull via child_process; Windows-safe
+  git binary resolution; `getRemoteInfo` (branch, ahead/behind, last commit)
+- [x] Webview "Sync" panel — compact status bar showing branch, ↑/↓ counts,
+  clickable remote URL, Push / Pull / Refresh buttons, last-action result
+- [x] MCP tools: `push_workspace` · `pull_workspace` · `get_remote_info`
+- [x] `src/core/workspace.ts` — isomorphic-git commits made best-effort so
+  node saves succeed when workspace lives inside a parent git repo
+- [ ] `src/tools/review.ts` — Gitea/GitHub API client for PR-based review
+  (open_review, merge_review — deferred to Phase 5)
+- [ ] Yjs integration scaffold — deferred
 
 ---
 

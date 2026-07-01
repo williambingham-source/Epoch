@@ -1,15 +1,21 @@
 import React, { useState } from 'react';
-import type { NodeEntry, ResearchNode, ProjectStatus } from '../types.js';
+import type { NodeEntry, ResearchNode, ProjectStatus, ReviewInfo } from '../types.js';
 import { PROJECT_STATUSES } from '../types.js';
 
 interface Props {
   nodePath: string;
   node: ResearchNode;
+  /** The status currently persisted on disk (used to detect upgrade). */
+  savedStatus: ProjectStatus;
   allNodes: NodeEntry[];
   isDirty: boolean;
+  reviewPending: boolean;
+  lastReview: ReviewInfo | null;
   onChange: (node: ResearchNode) => void;
   onSave: () => void;
   onOpenFolder: (nodePath: string) => void;
+  onRequestReview: (node: ResearchNode) => void;
+  onOpenExternal: (url: string) => void;
 }
 
 function statusClass(status: ProjectStatus): string {
@@ -105,15 +111,26 @@ function AddDependency({
 export function NodeEditor({
   nodePath,
   node,
+  savedStatus,
   allNodes,
   isDirty,
+  reviewPending,
+  lastReview,
   onChange,
   onSave,
   onOpenFolder,
+  onRequestReview,
+  onOpenExternal,
 }: Props) {
   const update = (partial: Partial<ResearchNode>) => onChange({ ...node, ...partial });
 
   const tagsValue = node.tags?.join(', ') ?? '';
+
+  // Show "Request Review" when the user is promoting the status (not downgrading,
+  // not Sketch — explanatory nodes stay at Sketch without review).
+  const savedIdx = PROJECT_STATUSES.indexOf(savedStatus);
+  const editingIdx = PROJECT_STATUSES.indexOf(node.status);
+  const isUpgrade = editingIdx > savedIdx && node.status !== 'Sketch';
   const handleTags = (raw: string) => {
     const tags = raw
       .split(',')
@@ -204,8 +221,37 @@ export function NodeEditor({
         <button className="btn" onClick={onSave} disabled={!isDirty}>
           Save
         </button>
-        {isDirty && <span className="muted">Unsaved changes</span>}
+
+        {isUpgrade && (
+          <button
+            className="btn review-btn"
+            onClick={() => onRequestReview(node)}
+            disabled={reviewPending}
+            title={`Open a peer-review pull request to promote this node from ${savedStatus} to ${node.status}`}
+          >
+            {reviewPending ? 'Opening PR…' : `↗ Request Review (→ ${node.status})`}
+          </button>
+        )}
+
+        {isDirty && !isUpgrade && <span className="muted">Unsaved changes</span>}
       </div>
+
+      {/* Review status banner */}
+      {lastReview && (
+        <div className="review-banner">
+          <span className="review-banner-icon">⎔</span>
+          <span>
+            PR #{lastReview.prNumber} opened —{' '}
+            <strong>{lastReview.title}</strong>
+          </span>
+          <button
+            className="review-banner-link"
+            onClick={() => onOpenExternal(lastReview.url)}
+          >
+            View in Gitea →
+          </button>
+        </div>
+      )}
 
       <div className="meta-row" style={{ marginTop: 24 }}>
         <span className="muted">Created {new Date(node.createdAt).toLocaleString()}</span>

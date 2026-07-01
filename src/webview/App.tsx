@@ -7,6 +7,7 @@ import type {
   CompileResult,
   RemoteInfo,
   SyncResult,
+  ReviewInfo,
   ToWebview,
 } from './types.js';
 import { BreadcrumbBar } from './components/BreadcrumbBar.js';
@@ -87,6 +88,10 @@ export function App() {
   const [lastSyncResult, setLastSyncResult] = useState<SyncResult | null>(null);
   const [lastSyncAction, setLastSyncAction] = useState<'push' | 'pull' | null>(null);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  // Review state
+  const [reviewPending, setReviewPending] = useState(false);
+  const [lastReview, setLastReview] = useState<ReviewInfo | null>(null);
+  const [reviewNodePath, setReviewNodePath] = useState<string | null>(null);
 
   // Receive messages from the extension host
   useEffect(() => {
@@ -121,6 +126,10 @@ export function App() {
           setLastSyncAction(msg.action);
           setLastSyncTime(new Date());
           break;
+        case 'reviewOpened':
+          setReviewPending(false);
+          setLastReview(msg.info);
+          break;
         case 'error':
           setCompiling(false);
           setSyncing(false);
@@ -147,6 +156,12 @@ export function App() {
     setCurrentPath(path);
     setCompileResult(null);
     setError(null);
+    // Clear review state when moving to a different node
+    if (path !== reviewNodePath) {
+      setLastReview(null);
+      setReviewPending(false);
+      setReviewNodePath(null);
+    }
     if (path) {
       const entry = nodes.find((n) => n.path === path);
       if (entry) {
@@ -211,6 +226,14 @@ export function App() {
     vscode.postMessage({ type: 'openExternal', url });
   };
 
+  const handleRequestReview = (node: ResearchNode) => {
+    if (!currentPath) return;
+    setReviewPending(true);
+    setReviewNodePath(currentPath);
+    setLastReview(null);
+    vscode.postMessage({ type: 'openReview', nodePath: currentPath, node });
+  };
+
   if (!ready) {
     return (
       <div style={{ padding: 24 }} className="muted">
@@ -254,11 +277,16 @@ export function App() {
             <NodeEditor
               nodePath={currentPath}
               node={editingNode}
+              savedStatus={currentEntry?.node.status ?? editingNode.status}
               allNodes={nodes}
               isDirty={isDirty}
+              reviewPending={reviewPending}
+              lastReview={reviewNodePath === currentPath ? lastReview : null}
               onChange={handleNodeChange}
               onSave={handleSave}
               onOpenFolder={handleOpenFolder}
+              onRequestReview={handleRequestReview}
+              onOpenExternal={handleOpenExternal}
             />
           ) : (
             <WorkspaceHome manifest={manifest!} nodeCount={nodes.length} />

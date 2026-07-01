@@ -1,71 +1,4 @@
-import { execFile } from 'child_process';
-import * as path from 'path';
-import * as fs from 'fs/promises';
-
-// ---------------------------------------------------------------------------
-// Git binary resolution (Windows-safe)
-// ---------------------------------------------------------------------------
-
-const WIN_GIT_CANDIDATES = [
-  'C:\\Program Files\\Git\\cmd\\git.exe',
-  'C:\\Program Files\\Git\\bin\\git.exe',
-  'C:\\Program Files (x86)\\Git\\cmd\\git.exe',
-];
-
-let _gitBin: string | null = null;
-
-async function resolveGit(): Promise<string> {
-  if (_gitBin) return _gitBin;
-  if (process.platform === 'win32') {
-    for (const c of WIN_GIT_CANDIDATES) {
-      try {
-        await fs.access(c);
-        _gitBin = c;
-        return c;
-      } catch {}
-    }
-  }
-  _gitBin = 'git';
-  return 'git';
-}
-
-function runGit(args: string[], cwd: string, timeoutMs = 15000): Promise<{ stdout: string; stderr: string }> {
-  return new Promise(async (resolve, reject) => {
-    const bin = await resolveGit();
-    const timer = setTimeout(() => {
-      child.kill();
-      reject(new Error(`git ${args[0]} timed out after ${timeoutMs}ms`));
-    }, timeoutMs);
-
-    const child = execFile(
-      bin,
-      args,
-      { cwd, maxBuffer: 10 * 1024 * 1024 },
-      (err, stdout, stderr) => {
-        clearTimeout(timer);
-        if (err) reject(Object.assign(err, { stdout, stderr }));
-        else resolve({ stdout, stderr });
-      },
-    );
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Git root discovery
-// ---------------------------------------------------------------------------
-
-async function findGitRoot(dir: string): Promise<string | null> {
-  let current = path.resolve(dir);
-  while (true) {
-    try {
-      await fs.access(path.join(current, '.git'));
-      return current;
-    } catch {}
-    const parent = path.dirname(current);
-    if (parent === current) return null;
-    current = parent;
-  }
-}
+import { runGit, findGitRoot } from './_git.js';
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -155,19 +88,17 @@ export async function pushWorkspace(workspaceDir: string): Promise<SyncResult> {
 
   try {
     // Stage any modified / untracked files under the workspace directory
-    const relPath = path.relative(root, workspaceDir).replace(/\\/g, '/') || '.';
-    const { stdout: statusOut } = await runGit(['status', '--porcelain', '--', relPath], root);
+    const { stdout: statusOut } = await runGit(['status', '--porcelain', '--', workspaceDir], root);
 
     if (statusOut.trim()) {
-      await runGit(['add', '--', relPath], root);
+      await runGit(['add', '--', workspaceDir], root);
 
       // Commit only if something was actually staged
       try {
-        // --quiet exits 0 if nothing staged, 1 if staged changes exist
         await runGit(['diff', '--cached', '--quiet'], root);
-        // exit 0 → nothing staged (shouldn't normally happen after git add)
+        // exit 0 → nothing staged (unlikely after git add)
       } catch {
-        // exit 1 → staged changes present → commit
+        // exit 1 → staged changes → commit them
         const ts = new Date().toISOString().slice(0, 16).replace('T', ' ');
         await runGit(['commit', '-m', `workspace: save changes ${ts}`], root);
       }

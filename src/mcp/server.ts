@@ -33,6 +33,9 @@ import { compileProject, compileWorkspace } from '../tools/latex-compiler.js';
 // Sync
 import { pushWorkspace, pullWorkspace, getRemoteInfo } from '../core/sync.js';
 
+// Review
+import { openReview, listReviews } from '../tools/review.js';
+
 // Types
 import { isProject } from '../types/project.js';
 import { isResearchNode } from '../types/node.js';
@@ -216,6 +219,33 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: 'get_remote_info',
       description: 'Return the Git remote URL, current branch, and ahead/behind counts.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          workspaceDir: { type: 'string', description: 'Absolute path to the workspace root' },
+        },
+        required: ['workspaceDir'],
+      },
+    },
+    {
+      name: 'open_review',
+      description:
+        'Create a peer-review pull request on Gitea to propose promoting a node ' +
+        'to a higher epistemic status. Creates a review branch with the proposed ' +
+        'node.json status, pushes it, and opens a PR against the base branch.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          workspaceDir: { type: 'string', description: 'Absolute path to the workspace root' },
+          nodePath: { type: 'string', description: 'Workspace-relative path to the node folder' },
+          proposedNode: { type: 'object', description: 'Full ResearchNode with the proposed status set' },
+        },
+        required: ['workspaceDir', 'nodePath', 'proposedNode'],
+      },
+    },
+    {
+      name: 'list_reviews',
+      description: 'List open Epoch review pull requests on the Gitea remote.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -414,6 +444,25 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'get_remote_info': {
         const info = await getRemoteInfo(str('workspaceDir'));
         return { content: [{ type: 'text', text: JSON.stringify(info, null, 2) }] };
+      }
+
+      case 'open_review': {
+        if (!isResearchNode(a['proposedNode'])) {
+          throw new Error('proposedNode must satisfy the ResearchNode schema.');
+        }
+        const info = await openReview({
+          workspaceDir: str('workspaceDir'),
+          nodePath: str('nodePath'),
+          proposedNode: a['proposedNode'],
+          remoteUrl: (await getRemoteInfo(str('workspaceDir'))).url ?? '',
+        });
+        return { content: [{ type: 'text', text: JSON.stringify(info, null, 2) }] };
+      }
+
+      case 'list_reviews': {
+        const remoteInfo = await getRemoteInfo(str('workspaceDir'));
+        const reviews = await listReviews(remoteInfo.url ?? '');
+        return { content: [{ type: 'text', text: JSON.stringify(reviews, null, 2) }] };
       }
 
       // ---- Phase 1 ----------------------------------------------------------
