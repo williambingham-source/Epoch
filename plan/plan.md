@@ -127,6 +127,32 @@ proof, continued fractions, and examples.
 
 ---
 
+## Local Gitea Server
+
+A self-hosted Gitea instance runs in Docker for local git sync and (eventually)
+PR-based review. Start/stop with `docker compose` from the `gitea/` directory.
+
+| Item         | Value                                    |
+|--------------|------------------------------------------|
+| Web UI       | http://localhost:3000                    |
+| Username     | `william`                                |
+| Password     | `epoch-local`                            |
+| Repo URL     | http://localhost:3000/william/epoch      |
+| Git remote   | http://william:epoch-local@localhost:3000/william/epoch.git |
+
+```bash
+# Start
+docker compose -f gitea/docker-compose.yml up -d
+
+# Stop (data is preserved in gitea/data/)
+docker compose -f gitea/docker-compose.yml down
+
+# Push changes
+git push origin master
+```
+
+---
+
 ## Phase 4 — Sync & Collaboration
 
 Add Git remote sync and lay groundwork for real-time collaboration.

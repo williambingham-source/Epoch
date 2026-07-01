@@ -22,6 +22,9 @@ docker-test/**/*.pdf
 # Claude Code (machine-specific)
 .claude/
 
+# Gitea server data (local Docker volume)
+gitea/data/
+
 # OS
 .DS_Store
 Thumbs.db
