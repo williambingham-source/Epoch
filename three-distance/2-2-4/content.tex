@@ -1,0 +1,40 @@
+\section*{2+2=4}
+
+We establish the arithmetic identity $2 + 2 = 4$ from first principles using the
+Peano axioms, where the natural numbers are built from a constant $0$ and a
+successor function $S$.
+
+\subsection*{Definitions}
+
+Following Peano, we define:
+\[
+  1 \coloneqq S(0), \quad
+  2 \coloneqq S(1) = S(S(0)), \quad
+  3 \coloneqq S(2) = S(S(S(0))), \quad
+  4 \coloneqq S(3) = S(S(S(S(0)))).
+\]
+
+Addition is defined recursively by:
+\[
+  m + 0 = m, \qquad m + S(n) = S(m + n).
+\]
+
+\subsection*{Derivation}
+
+\begin{align*}
+  2 + 2
+    &= 2 + S(1)      && \text{(definition of } 2\text{)} \\
+    &= S(2 + 1)      && \text{(recursive case of addition)} \\
+    &= S(2 + S(0))   && \text{(definition of } 1\text{)} \\
+    &= S(S(2 + 0))   && \text{(recursive case)} \\
+    &= S(S(2))       && \text{(base case: } m + 0 = m\text{)} \\
+    &= S(3)          && \text{(definition of } 3\text{)} \\
+    &= 4.            && \text{(definition of } 4\text{)}
+\end{align*}
+
+\subsection*{Remark}
+
+This result is elementary but serves as a sanity check for the formal system:
+any model of the Peano axioms must satisfy $2 + 2 = 4$.  In particular, no
+non-standard model can violate it, since the derivation above uses only the
+axioms and the explicit definitions of the numerals.
