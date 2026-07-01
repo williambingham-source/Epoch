@@ -30,6 +30,9 @@ import {
 // Compilers
 import { compileProject, compileWorkspace } from '../tools/latex-compiler.js';
 
+// Sync
+import { pushWorkspace, pullWorkspace, getRemoteInfo } from '../core/sync.js';
+
 // Types
 import { isProject } from '../types/project.js';
 import { isResearchNode } from '../types/node.js';
@@ -179,6 +182,44 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           workspaceDir: { type: 'string', description: 'Absolute path to the workspace root' },
           outputDir: { type: 'string', description: 'Where to place the PDF (defaults to workspaceDir)' },
           dockerImage: { type: 'string', description: 'Docker image with pdflatex (default: texlive/texlive:latest)' },
+        },
+        required: ['workspaceDir'],
+      },
+    },
+    // ---- Phase 4: Sync ------------------------------------------------------
+    {
+      name: 'push_workspace',
+      description:
+        'Commit any unsaved workspace changes and push to the Git remote ' +
+        '(Gitea or GitHub). Requires a remote named "origin" to be configured.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          workspaceDir: { type: 'string', description: 'Absolute path to the workspace root' },
+        },
+        required: ['workspaceDir'],
+      },
+    },
+    {
+      name: 'pull_workspace',
+      description:
+        'Pull the latest commits from the Git remote into the workspace ' +
+        '(fast-forward only). Fails if there are divergent local commits.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          workspaceDir: { type: 'string', description: 'Absolute path to the workspace root' },
+        },
+        required: ['workspaceDir'],
+      },
+    },
+    {
+      name: 'get_remote_info',
+      description: 'Return the Git remote URL, current branch, and ahead/behind counts.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          workspaceDir: { type: 'string', description: 'Absolute path to the workspace root' },
         },
         required: ['workspaceDir'],
       },
@@ -357,6 +398,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           dockerImage: optStr('dockerImage'),
         });
         return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      // ---- Phase 4: Sync ----------------------------------------------------
+      case 'push_workspace': {
+        const result = await pushWorkspace(str('workspaceDir'));
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'pull_workspace': {
+        const result = await pullWorkspace(str('workspaceDir'));
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'get_remote_info': {
+        const info = await getRemoteInfo(str('workspaceDir'));
+        return { content: [{ type: 'text', text: JSON.stringify(info, null, 2) }] };
       }
 
       // ---- Phase 1 ----------------------------------------------------------

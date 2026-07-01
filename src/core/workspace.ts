@@ -195,16 +195,19 @@ export async function addNode(opts: AddNodeOptions): Promise<AddNodeResult> {
     `${relativePath}/${DATA_DIR}/.gitkeep`,
   ];
 
-  for (const filepath of filesToStage) {
-    await git.add({ fs, dir: workspaceDir, filepath });
+  try {
+    for (const filepath of filesToStage) {
+      await git.add({ fs, dir: workspaceDir, filepath });
+    }
+    await git.commit({
+      fs,
+      dir: workspaceDir,
+      message: `add: node "${title}" at ${relativePath}`,
+      author,
+    });
+  } catch {
+    // Files are created; git commit deferred to next push
   }
-
-  await git.commit({
-    fs,
-    dir: workspaceDir,
-    message: `add: node "${title}" at ${relativePath}`,
-    author,
-  });
 
   return { node, nodePath: relativePath };
 }
@@ -237,13 +240,19 @@ export async function writeNode(opts: WriteNodeOptions): Promise<void> {
     'utf-8',
   );
 
-  await git.add({ fs, dir: workspaceDir, filepath: `${nodePath}/${NODE_FILE}` });
-  await git.commit({
-    fs,
-    dir: workspaceDir,
-    message: commitMessage ?? `update: "${node.title}" → ${node.status}`,
-    author,
-  });
+  // Git operations are best-effort: the workspace may live inside a parent git
+  // repo (no own .git), in which case commits are handled by the sync layer.
+  try {
+    await git.add({ fs, dir: workspaceDir, filepath: `${nodePath}/${NODE_FILE}` });
+    await git.commit({
+      fs,
+      dir: workspaceDir,
+      message: commitMessage ?? `update: "${node.title}" → ${node.status}`,
+      author,
+    });
+  } catch {
+    // File is saved; git commit deferred to next push
+  }
 }
 
 // ---------------------------------------------------------------------------

@@ -9,6 +9,7 @@ import {
   readManifest,
 } from '../core/workspace.js';
 import { compileWorkspace } from '../tools/latex-compiler.js';
+import { getRemoteInfo, pushWorkspace, pullWorkspace } from '../core/sync.js';
 import type { ToExtension, ToWebview, ResearchNode } from '../webview/types.js';
 
 // ---------------------------------------------------------------------------
@@ -157,6 +158,10 @@ function createPanel(context: vscode.ExtensionContext, workspaceDir: string): vs
         switch (msg.type) {
           case 'ready':
             await sendInit(panel, workspaceDir);
+            // Send remote info asynchronously (may do a git fetch)
+            void getRemoteInfo(workspaceDir).then((info) => {
+              void panel.webview.postMessage({ type: 'remoteInfo', info } satisfies ToWebview);
+            });
             break;
 
           case 'saveNode': {
@@ -209,6 +214,32 @@ function createPanel(context: vscode.ExtensionContext, workspaceDir: string): vs
           case 'navigateTo':
             // Navigation is managed client-side; no server action needed.
             break;
+
+          case 'sync': {
+            const syncFn = msg.action === 'push' ? pushWorkspace : pullWorkspace;
+            const result = await syncFn(workspaceDir);
+            void panel.webview.postMessage({
+              type: 'syncResult',
+              result,
+              action: msg.action,
+            } satisfies ToWebview);
+            // Refresh remote info after sync
+            void getRemoteInfo(workspaceDir).then((info) => {
+              void panel.webview.postMessage({ type: 'remoteInfo', info } satisfies ToWebview);
+            });
+            break;
+          }
+
+          case 'getRemoteInfo': {
+            const info = await getRemoteInfo(workspaceDir);
+            void panel.webview.postMessage({ type: 'remoteInfo', info } satisfies ToWebview);
+            break;
+          }
+
+          case 'openExternal': {
+            void vscode.env.openExternal(vscode.Uri.parse(msg.url));
+            break;
+          }
         }
       } catch (err: unknown) {
         void panel.webview.postMessage({

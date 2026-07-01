@@ -49,6 +49,25 @@ export interface CompileResult {
   stdout?: string;
 }
 
+export interface RemoteInfo {
+  url: string | null;
+  /** URL without credentials for display (e.g. "localhost:3000/william/epoch"). */
+  displayUrl: string | null;
+  /** Full URL without credentials for browser navigation. */
+  browseUrl: string | null;
+  branch: string;
+  ahead: number;
+  behind: number;
+  lastCommit?: string;
+  hasRemote: boolean;
+}
+
+export interface SyncResult {
+  success: boolean;
+  message: string;
+  details?: string;
+}
+
 // ---------------------------------------------------------------------------
 // Webview → Extension
 // ---------------------------------------------------------------------------
@@ -58,7 +77,10 @@ export type ToExtension =
   | { type: 'saveNode'; nodePath: string; node: ResearchNode }
   | { type: 'addNode'; parentPath: string | null; title: string; description?: string }
   | { type: 'compile' }
-  | { type: 'openFolder'; nodePath: string };
+  | { type: 'openFolder'; nodePath: string }
+  | { type: 'sync'; action: 'push' | 'pull' }
+  | { type: 'getRemoteInfo' }
+  | { type: 'openExternal'; url: string };
 
 // ---------------------------------------------------------------------------
 // Extension → Webview
@@ -68,4 +90,6 @@ export type ToWebview =
   | { type: 'nodes'; nodes: NodeEntry[] }
   | { type: 'compileResult'; result: CompileResult }
   | { type: 'pdfData'; base64: string; fileName: string }
+  | { type: 'remoteInfo'; info: RemoteInfo }
+  | { type: 'syncResult'; result: SyncResult; action: 'push' | 'pull' }
   | { type: 'error'; message: string };

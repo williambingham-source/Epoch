@@ -5,6 +5,8 @@ import type {
   NodeEntry,
   ResearchNode,
   CompileResult,
+  RemoteInfo,
+  SyncResult,
   ToWebview,
 } from './types.js';
 import { BreadcrumbBar } from './components/BreadcrumbBar.js';
@@ -12,6 +14,7 @@ import { NodeEditor } from './components/NodeEditor.js';
 import { ChildList } from './components/ChildList.js';
 import { CompilePanel } from './components/CompilePanel.js';
 import { PdfViewer } from './components/PdfViewer.js';
+import { SyncPanel } from './components/SyncPanel.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -78,6 +81,12 @@ export function App() {
   const [pdfFileName, setPdfFileName] = useState('');
   const [viewMode, setViewMode] = useState<'edit' | 'pdf'>('edit');
   const [error, setError] = useState<string | null>(null);
+  // Sync state
+  const [remoteInfo, setRemoteInfo] = useState<RemoteInfo | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [lastSyncResult, setLastSyncResult] = useState<SyncResult | null>(null);
+  const [lastSyncAction, setLastSyncAction] = useState<'push' | 'pull' | null>(null);
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
 
   // Receive messages from the extension host
   useEffect(() => {
@@ -103,8 +112,18 @@ export function App() {
           setPdfFileName(msg.fileName);
           setViewMode('pdf');
           break;
+        case 'remoteInfo':
+          setRemoteInfo(msg.info);
+          break;
+        case 'syncResult':
+          setSyncing(false);
+          setLastSyncResult(msg.result);
+          setLastSyncAction(msg.action);
+          setLastSyncTime(new Date());
+          break;
         case 'error':
           setCompiling(false);
+          setSyncing(false);
           setError(msg.message);
           break;
       }
@@ -169,6 +188,27 @@ export function App() {
     setCompileResult(null);
     setError(null);
     vscode.postMessage({ type: 'compile' });
+  };
+
+  const handlePush = () => {
+    setSyncing(true);
+    setLastSyncAction('push');
+    vscode.postMessage({ type: 'sync', action: 'push' });
+  };
+
+  const handlePull = () => {
+    setSyncing(true);
+    setLastSyncAction('pull');
+    vscode.postMessage({ type: 'sync', action: 'pull' });
+  };
+
+  const handleRefreshRemote = () => {
+    setRemoteInfo(null);
+    vscode.postMessage({ type: 'getRemoteInfo' });
+  };
+
+  const handleOpenExternal = (url: string) => {
+    vscode.postMessage({ type: 'openExternal', url });
   };
 
   if (!ready) {
@@ -243,6 +283,17 @@ export function App() {
         viewMode={viewMode}
         onCompile={handleCompile}
         onToggleView={() => setViewMode((m) => (m === 'pdf' ? 'edit' : 'pdf'))}
+      />
+      <SyncPanel
+        remoteInfo={remoteInfo}
+        syncing={syncing}
+        lastResult={lastSyncResult}
+        lastAction={lastSyncAction}
+        lastSyncTime={lastSyncTime}
+        onPush={handlePush}
+        onPull={handlePull}
+        onRefresh={handleRefreshRemote}
+        onOpenExternal={handleOpenExternal}
       />
     </div>
   );
