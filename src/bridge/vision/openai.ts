@@ -7,7 +7,7 @@ export class OpenAIVisionProvider implements VisionProvider {
   private apiKey: string;
 
   constructor(model?: string) {
-    this.model = model ?? process.env['VISION_MODEL'] ?? 'gpt-4o';
+    this.model = model || process.env['VISION_MODEL'] || 'gpt-4o';
     this.apiKey = process.env['OPENAI_API_KEY'] ?? '';
     if (!this.apiKey) throw new Error('OPENAI_API_KEY env var is required for the openai provider');
   }

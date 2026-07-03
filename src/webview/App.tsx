@@ -72,6 +72,7 @@ export function App() {
   const [reviews, setReviews] = useState<ReviewRequest[]>([]);
   const [activeReview, setActiveReview] = useState<ReviewRequest | null>(null);
   const [layoutMode, setLayoutMode] = useState<LayoutMode>(savedState?.layoutMode ?? 'analytical');
+  const [canvasUrl, setCanvasUrl] = useState('');
 
   // Receive messages from the extension host
   useEffect(() => {
@@ -83,6 +84,7 @@ export function App() {
           setManifest(msg.manifest);
           setNodes(msg.nodes);
           setReviews(msg.reviews);
+          setCanvasUrl(msg.canvasUrl);
           setReady(true);
           setError(null);
           break;
@@ -294,6 +296,7 @@ export function App() {
     reviews,
     activeReview,
     layoutMode,
+    canvasUrl,
     onNavigate: handleNavigate,
     onNodeChange: handleNodeChange,
     onSave: handleSave,

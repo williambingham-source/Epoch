@@ -7,7 +7,7 @@ export class OllamaVisionProvider implements VisionProvider {
   private baseUrl: string;
 
   constructor(model?: string) {
-    this.model = model ?? process.env['VISION_MODEL'] ?? 'llava';
+    this.model = model || process.env['VISION_MODEL'] || 'llava';
     this.baseUrl =
       process.env['OLLAMA_BASE_URL'] ?? 'http://host.docker.internal:11434';
   }

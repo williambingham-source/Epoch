@@ -57,6 +57,7 @@ export interface SharedLayoutProps {
 
   // === Layout ===
   layoutMode: LayoutMode;
+  canvasUrl: string;
 
   // === Handlers ===
   onNavigate: (path: string | null) => void;

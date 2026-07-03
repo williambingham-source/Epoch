@@ -105,19 +105,31 @@ export function nodesRouter(workspaceDir: string): Router {
     }
   });
 
-  // PUT /api/nodes/:encodedPath — update content.tex (Flow B save)
+  // PUT /api/nodes/:encodedPath — update node metadata and/or content.tex
   router.put('/:encodedPath', async (req, res) => {
     try {
       const nodePath = decodeURIComponent(req.params['encodedPath'] ?? '');
       const absNodePath = path.join(workspaceDir, nodePath);
-      const { latex, commitMessage } = req.body as {
-        latex: string;
+      const { latex, title, description, status, tags, commitMessage } = req.body as {
+        latex?: string;
+        title?: string;
+        description?: string;
+        status?: ProjectStatus;
+        tags?: string[];
         commitMessage?: string;
       };
 
-      await fs.writeFile(path.join(absNodePath, 'content.tex'), latex, 'utf-8');
-
       const node = await readNode(absNodePath);
+
+      if (title !== undefined) node.title = title;
+      if (description !== undefined) node.description = description;
+      if (status !== undefined) node.status = status;
+      if (tags !== undefined) node.tags = tags;
+
+      if (latex !== undefined) {
+        await fs.writeFile(path.join(absNodePath, 'content.tex'), latex, 'utf-8');
+      }
+
       await writeNode({
         workspaceDir,
         nodePath,

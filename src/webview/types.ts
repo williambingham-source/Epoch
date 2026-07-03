@@ -115,7 +115,7 @@ export type ToExtension =
 // Extension → Webview
 // ---------------------------------------------------------------------------
 export type ToWebview =
-  | { type: 'init'; workspaceDir: string; manifest: Manifest; nodes: NodeEntry[]; reviews: ReviewRequest[] }
+  | { type: 'init'; workspaceDir: string; manifest: Manifest; nodes: NodeEntry[]; reviews: ReviewRequest[]; canvasUrl: string }
   | { type: 'nodes'; nodes: NodeEntry[] }
   | { type: 'compileResult'; result: CompileResult }
   | { type: 'pdfData'; base64: string; fileName: string }

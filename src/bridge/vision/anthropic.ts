@@ -9,7 +9,7 @@ export class AnthropicVisionProvider implements VisionProvider {
 
   constructor(model?: string) {
     this.client = new Anthropic({ apiKey: process.env['ANTHROPIC_API_KEY'] });
-    this.model = model ?? process.env['VISION_MODEL'] ?? 'claude-opus-4-8';
+    this.model = model || process.env['VISION_MODEL'] || 'claude-opus-4-8';
   }
 
   async convertImage(imageBase64: string, hint?: string): Promise<ConvertResult> {

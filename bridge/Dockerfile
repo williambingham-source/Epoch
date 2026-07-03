@@ -1,7 +1,7 @@
 FROM node:20-alpine
 
 # docker CLI so the bridge can invoke pdflatex via Docker socket
-RUN apk add --no-cache docker-cli
+RUN apk add --no-cache docker-cli poppler-utils
 
 WORKDIR /app
 

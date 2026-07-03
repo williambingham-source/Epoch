@@ -52,7 +52,7 @@ export function FocusLayout(p: SharedLayoutProps) {
 
         <div style={{ flex: 1 }} />
 
-        <LayoutTabs mode={p.layoutMode} onChange={p.onSetLayout} />
+        <LayoutTabs mode={p.layoutMode} onChange={p.onSetLayout} canvasUrl={p.canvasUrl} />
 
         <button
           className={`btn secondary${drawerOpen ? ' active-drawer-btn' : ''}`}

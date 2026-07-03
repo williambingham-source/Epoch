@@ -20,7 +20,7 @@ export function AnalyticalLayout(p: SharedLayoutProps) {
           currentEntry={p.currentEntry}
           onNavigate={p.onNavigate}
         />
-        <LayoutTabs mode={p.layoutMode} onChange={p.onSetLayout} />
+        <LayoutTabs mode={p.layoutMode} onChange={p.onSetLayout} canvasUrl={p.canvasUrl} />
       </div>
 
       {p.error && <div className="error-banner">{p.error}</div>}

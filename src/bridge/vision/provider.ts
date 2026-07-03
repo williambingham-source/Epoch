@@ -18,11 +18,12 @@ export const VISION_SYSTEM_PROMPT = `You are a LaTeX transcription assistant for
 
 Given an image of handwritten or drawn mathematical content:
 1. Return ONLY the LaTeX fragment — no \\documentclass, no \\begin{document}.
-2. Use these environments where appropriate: theorem, lemma, corollary, definition, proof, remark (from amsthm).
-3. Use mathtools and amssymb notation. \\coloneqq is available.
-4. If you cannot read a symbol clearly, write \\textbf{??} in its place.
-5. Preserve the logical structure of what was drawn (proof steps, cases, etc.).
-6. Return nothing except the LaTeX.`;
+2. All mathematics MUST be inside math mode. Use \\[...\\] for display math and $...$ for inline math. Never leave a math symbol or expression outside of math delimiters.
+3. Use these environments where appropriate: theorem, lemma, corollary, definition, proof, remark (from amsthm).
+4. Use mathtools and amssymb notation. \\coloneqq is available.
+5. If you cannot read a symbol clearly, write \\textbf{??} in its place.
+6. Preserve the logical structure of what was drawn (proof steps, cases, etc.).
+7. Return nothing except the LaTeX.`;
 
 export async function createProvider(name: ProviderName, model?: string): Promise<VisionProvider> {
   switch (name) {

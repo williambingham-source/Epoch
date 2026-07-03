@@ -1,18 +1,25 @@
 import type { VisionProvider, ConvertResult } from './provider.js';
 import { VISION_SYSTEM_PROMPT } from './provider.js';
 
+let lastGeminiRequest = 0;
+const GEMINI_MIN_GAP_MS = 1000;
+
 export class GeminiVisionProvider implements VisionProvider {
   readonly name = 'gemini';
   private model: string;
   private apiKey: string;
 
   constructor(model?: string) {
-    this.model = model ?? process.env['VISION_MODEL'] ?? 'gemini-2.0-flash';
+    this.model = model || process.env['VISION_MODEL'] || 'gemini-2.0-flash';
     this.apiKey = process.env['GEMINI_API_KEY'] ?? '';
     if (!this.apiKey) throw new Error('GEMINI_API_KEY env var is required for the gemini provider');
   }
 
   async convertImage(imageBase64: string, hint?: string): Promise<ConvertResult> {
+    const wait = GEMINI_MIN_GAP_MS - (Date.now() - lastGeminiRequest);
+    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+    lastGeminiRequest = Date.now();
+
     const userText = hint
       ? `Convert this handwritten mathematics to LaTeX. Hint: ${hint}`
       : 'Convert this handwritten mathematics to LaTeX.';

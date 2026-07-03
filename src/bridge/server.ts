@@ -13,6 +13,7 @@ import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 
 import { nodesRouter } from './routes/nodes.js';
 import { compileRouter } from './routes/compile.js';
+import { compilePngRouter } from './routes/compilePng.js';
 import { convertRouter } from './routes/convert.js';
 import { pdfRouter } from './routes/pdf.js';
 import { providersRouter } from './routes/providers.js';
@@ -47,7 +48,8 @@ if (process.argv.includes('--mcp-stdio')) {
   // REST routes
   app.use('/api/nodes', nodesRouter(WORKSPACE_DIR));
   app.use('/api/compile', compileRouter(WORKSPACE_DIR));
-  app.use('/api/convert', convertRouter());
+  app.use('/api/compile-png', compilePngRouter(WORKSPACE_DIR));
+  app.use('/api/convert', convertRouter(WORKSPACE_DIR));
   app.use('/api/pdf', pdfRouter(WORKSPACE_DIR));
   app.use('/api/providers', providersRouter());
 

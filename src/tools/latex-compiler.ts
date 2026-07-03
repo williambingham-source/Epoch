@@ -290,22 +290,19 @@ export async function compileFragment(
   const texPath = path.join(workspaceDir, texFile);
   const pdfPath = path.join(workspaceDir, pdfFile);
 
+  // standalone class crops the PDF to the content — no page margins, no page numbers
   const full = [
-    '\\documentclass[12pt]{article}',
+    '\\documentclass[border=10pt,varwidth=\\maxdimen]{standalone}',
     '\\usepackage[T1]{fontenc}',
     '\\usepackage[utf8]{inputenc}',
     '\\usepackage{mathtools,amssymb,amsthm}',
-    '\\usepackage{geometry}',
-    '\\geometry{margin=1in}',
-    '\\usepackage{hyperref}',
-    '\\newtheorem{theorem}{Theorem}[section]',
+    '\\newtheorem{theorem}{Theorem}',
     '\\newtheorem{lemma}[theorem]{Lemma}',
     '\\newtheorem{corollary}[theorem]{Corollary}',
     '\\newtheorem{definition}[theorem]{Definition}',
     '\\newtheorem{remark}[theorem]{Remark}',
     '\\theoremstyle{remark}',
     '\\newtheorem{example}[theorem]{Example}',
-    '\\setcounter{section}{0}',
     '\\begin{document}',
     latex,
     '\\end{document}',

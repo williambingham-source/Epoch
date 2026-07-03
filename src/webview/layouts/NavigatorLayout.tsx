@@ -104,7 +104,7 @@ export function NavigatorLayout(p: SharedLayoutProps) {
 
         <div style={{ flex: 1 }} />
 
-        <LayoutTabs mode={p.layoutMode} onChange={p.onSetLayout} />
+        <LayoutTabs mode={p.layoutMode} onChange={p.onSetLayout} canvasUrl={p.canvasUrl} />
 
         {/* Quick actions */}
         <button className="btn secondary" onClick={p.onCompile} disabled={p.compiling}>

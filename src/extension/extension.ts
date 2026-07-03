@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as nodePath from 'node:path';
 import * as nodeFs from 'node:fs/promises';
+import * as os from 'node:os';
 import {
   initWorkspace,
   addNode,
@@ -17,6 +18,31 @@ import type { ToExtension, ToWebview, ResearchNode, ProjectStatus } from '../web
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+function getLocalIP(): string {
+  const candidates: { addr: string; score: number }[] = [];
+  for (const [name, ifaces] of Object.entries(os.networkInterfaces())) {
+    const lower = name.toLowerCase();
+    // Skip virtual adapters (Docker, WSL, Hyper-V)
+    if (lower.startsWith('vethernet') || lower.includes('docker') || lower.includes('loopback')) {
+      continue;
+    }
+    for (const iface of ifaces ?? []) {
+      if (iface.family !== 'IPv4' || iface.internal) continue;
+      // Prefer LAN ranges: 192.168 > 10. > 172.
+      let score = iface.address.startsWith('192.168.') ? 3
+                : iface.address.startsWith('10.')       ? 2
+                : iface.address.startsWith('172.')      ? 1 : 0;
+      // Bonus for Wi-Fi / Ethernet names
+      if (lower.includes('wi-fi') || lower.includes('wifi') || lower.includes('wlan') || lower === 'ethernet') {
+        score += 10;
+      }
+      candidates.push({ addr: iface.address, score });
+    }
+  }
+  candidates.sort((a, b) => b.score - a.score);
+  return candidates[0]?.addr ?? 'localhost';
+}
 
 function getNonce(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -157,7 +183,8 @@ async function sendInit(panel: vscode.WebviewPanel, workspaceDir: string): Promi
     listNodes(workspaceDir),
     listReviews(workspaceDir),
   ]);
-  const msg: ToWebview = { type: 'init', workspaceDir, manifest, nodes, reviews };
+  const canvasUrl = `http://${getLocalIP()}:3001`;
+  const msg: ToWebview = { type: 'init', workspaceDir, manifest, nodes, reviews, canvasUrl };
   void panel.webview.postMessage(msg);
 }
 
