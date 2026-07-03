@@ -68,11 +68,31 @@ export interface SyncResult {
   details?: string;
 }
 
-export interface ReviewInfo {
-  prNumber: number;
-  url: string;
-  branch: string;
-  title: string;
+// ---------------------------------------------------------------------------
+// In-app peer review types (mirrors src/types/review.ts)
+// ---------------------------------------------------------------------------
+
+export interface ReviewDecision {
+  by: { name: string; email: string };
+  at: string;
+  verdict: 'approved' | 'rejected';
+  comment: string;
+}
+
+export interface ReviewRequest {
+  id: string;
+  nodePath: string;
+  nodeTitle: string;
+  fromStatus: ProjectStatus;
+  toStatus: ProjectStatus;
+  requestedBy: { name: string; email: string };
+  requestedAt: string;
+  comment: string;
+  contentSnapshot: string;
+  nodeSnapshot: ResearchNode;
+  decisions: ReviewDecision[];
+  status: 'pending' | 'approved' | 'rejected';
+  resolvedAt?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -88,17 +108,18 @@ export type ToExtension =
   | { type: 'sync'; action: 'push' | 'pull' }
   | { type: 'getRemoteInfo' }
   | { type: 'openExternal'; url: string }
-  | { type: 'openReview'; nodePath: string; node: ResearchNode };
+  | { type: 'createReview'; nodePath: string; proposedStatus: ProjectStatus; comment: string }
+  | { type: 'submitDecision'; reviewId: string; verdict: 'approved' | 'rejected'; comment: string };
 
 // ---------------------------------------------------------------------------
 // Extension → Webview
 // ---------------------------------------------------------------------------
 export type ToWebview =
-  | { type: 'init'; workspaceDir: string; manifest: Manifest; nodes: NodeEntry[] }
+  | { type: 'init'; workspaceDir: string; manifest: Manifest; nodes: NodeEntry[]; reviews: ReviewRequest[] }
   | { type: 'nodes'; nodes: NodeEntry[] }
   | { type: 'compileResult'; result: CompileResult }
   | { type: 'pdfData'; base64: string; fileName: string }
   | { type: 'remoteInfo'; info: RemoteInfo }
   | { type: 'syncResult'; result: SyncResult; action: 'push' | 'pull' }
-  | { type: 'reviewOpened'; info: ReviewInfo }
+  | { type: 'reviews'; reviews: ReviewRequest[] }
   | { type: 'error'; message: string };

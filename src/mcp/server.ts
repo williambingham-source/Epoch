@@ -34,7 +34,7 @@ import { compileProject, compileWorkspace } from '../tools/latex-compiler.js';
 import { pushWorkspace, pullWorkspace, getRemoteInfo } from '../core/sync.js';
 
 // Review
-import { openReview, listReviews } from '../tools/review.js';
+import { createReview, listReviews, submitDecision } from '../core/reviews.js';
 
 // Types
 import { isProject } from '../types/project.js';
@@ -228,30 +228,51 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       },
     },
     {
-      name: 'open_review',
+      name: 'create_review',
       description:
-        'Create a peer-review pull request on Gitea to propose promoting a node ' +
-        'to a higher epistemic status. Creates a review branch with the proposed ' +
-        'node.json status, pushes it, and opens a PR against the base branch.',
+        'Submit an in-app peer-review request to promote a node to a higher ' +
+        'epistemic status. Creates a reviews/{id}.json file committed to the workspace ' +
+        'repo so collaborators can see it after a pull.',
       inputSchema: {
         type: 'object',
         properties: {
           workspaceDir: { type: 'string', description: 'Absolute path to the workspace root' },
           nodePath: { type: 'string', description: 'Workspace-relative path to the node folder' },
-          proposedNode: { type: 'object', description: 'Full ResearchNode with the proposed status set' },
+          proposedStatus: { type: 'string', description: 'Target status (Conjecture | Hypothesis | Theorem)' },
+          comment: { type: 'string', description: 'Optional note to the reviewer' },
+          authorName: { type: 'string' },
+          authorEmail: { type: 'string' },
         },
-        required: ['workspaceDir', 'nodePath', 'proposedNode'],
+        required: ['workspaceDir', 'nodePath', 'proposedStatus'],
       },
     },
     {
       name: 'list_reviews',
-      description: 'List open Epoch review pull requests on the Gitea remote.',
+      description: 'List all in-app peer-review requests in the workspace (newest first).',
       inputSchema: {
         type: 'object',
         properties: {
           workspaceDir: { type: 'string', description: 'Absolute path to the workspace root' },
         },
         required: ['workspaceDir'],
+      },
+    },
+    {
+      name: 'submit_decision',
+      description:
+        'Approve or request changes on a pending review. Approval automatically ' +
+        'promotes the node status in node.json and commits both files.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          workspaceDir: { type: 'string', description: 'Absolute path to the workspace root' },
+          reviewId: { type: 'string', description: 'The review UUID (id field from list_reviews)' },
+          verdict: { type: 'string', description: '"approved" or "rejected"' },
+          comment: { type: 'string', description: 'Required for "rejected", optional for "approved"' },
+          reviewerName: { type: 'string' },
+          reviewerEmail: { type: 'string' },
+        },
+        required: ['workspaceDir', 'reviewId', 'verdict'],
       },
     },
     // ---- Phase 1: single project.json repos (legacy) -----------------------
@@ -446,23 +467,37 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return { content: [{ type: 'text', text: JSON.stringify(info, null, 2) }] };
       }
 
-      case 'open_review': {
-        if (!isResearchNode(a['proposedNode'])) {
-          throw new Error('proposedNode must satisfy the ResearchNode schema.');
-        }
-        const info = await openReview({
+      case 'create_review': {
+        const review = await createReview({
           workspaceDir: str('workspaceDir'),
           nodePath: str('nodePath'),
-          proposedNode: a['proposedNode'],
-          remoteUrl: (await getRemoteInfo(str('workspaceDir'))).url ?? '',
+          proposedStatus: str('proposedStatus') as Parameters<typeof createReview>[0]['proposedStatus'],
+          comment: optStr('comment') ?? '',
+          author: {
+            name: String(a['authorName'] ?? 'Epoch'),
+            email: String(a['authorEmail'] ?? 'epoch@local'),
+          },
         });
-        return { content: [{ type: 'text', text: JSON.stringify(info, null, 2) }] };
+        return { content: [{ type: 'text', text: JSON.stringify(review, null, 2) }] };
       }
 
       case 'list_reviews': {
-        const remoteInfo = await getRemoteInfo(str('workspaceDir'));
-        const reviews = await listReviews(remoteInfo.url ?? '');
+        const reviews = await listReviews(str('workspaceDir'));
         return { content: [{ type: 'text', text: JSON.stringify(reviews, null, 2) }] };
+      }
+
+      case 'submit_decision': {
+        const updated = await submitDecision({
+          workspaceDir: str('workspaceDir'),
+          reviewId: str('reviewId'),
+          verdict: str('verdict') as 'approved' | 'rejected',
+          comment: optStr('comment') ?? '',
+          reviewer: {
+            name: String(a['reviewerName'] ?? 'Epoch'),
+            email: String(a['reviewerEmail'] ?? 'epoch@local'),
+          },
+        });
+        return { content: [{ type: 'text', text: JSON.stringify(updated, null, 2) }] };
       }
 
       // ---- Phase 1 ----------------------------------------------------------

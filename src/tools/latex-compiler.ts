@@ -43,9 +43,15 @@ function dockerError(err: unknown, bin?: string): string {
   if (e.code === 'ENOENT') {
     return `Docker not found (tried: ${bin ?? 'docker'}). Install Docker Desktop and ensure it is running.`;
   }
-  // Include pdflatex output so LaTeX errors are visible
-  const out = [e.stderr, e.stdout].filter(Boolean).join('\n').slice(-3000);
-  return out || e.message || String(err);
+  const out = [e.stderr, e.stdout].filter(Boolean).join('\n');
+  // Prefer concise LaTeX error lines (start with '!') over the raw dump
+  const latexErrors = out
+    .split('\n')
+    .filter((l) => l.startsWith('!') || l.startsWith('LaTeX Error:'))
+    .slice(0, 5)
+    .join(' | ');
+  if (latexErrors) return latexErrors;
+  return out.slice(-500) || e.message || String(err);
 }
 
 // ---------------------------------------------------------------------------
@@ -139,7 +145,7 @@ function buildMasterTex(texFiles: readonly string[], rootDir: string): string {
     '\\documentclass[12pt]{article}',
     '\\usepackage[T1]{fontenc}',
     '\\usepackage[utf8]{inputenc}',
-    '\\usepackage{amsmath,amssymb,amsthm}',
+    '\\usepackage{mathtools,amssymb,amsthm}',
     '\\usepackage{geometry}',
     '\\geometry{margin=1in}',
     '\\usepackage{hyperref}',
@@ -255,6 +261,89 @@ export async function compileProject(options: CompileOptions): Promise<CompileRe
 
   // Unreachable, but satisfies TypeScript
   return { success: false, texFiles, errors: ['Unexpected compiler exit.'] };
+}
+
+// ---------------------------------------------------------------------------
+// Fragment compiler (used by bridge /api/compile)
+// ---------------------------------------------------------------------------
+
+export interface FragmentCompileResult {
+  success: boolean;
+  pdfBytes?: Buffer;
+  error?: string;
+}
+
+/**
+ * Wraps a raw LaTeX fragment in the standard Epoch preamble, compiles it
+ * via Docker/pdflatex, and returns the raw PDF bytes.
+ * workspaceDir is used as the Docker volume mount point (must be a host path
+ * visible to the Docker daemon — set HOST_WORKSPACE_DIR env var when running
+ * inside a Docker container with socket mounting).
+ */
+export async function compileFragment(
+  latex: string,
+  workspaceDir: string,
+): Promise<FragmentCompileResult> {
+  const id = `_epoch_frag_${Date.now()}`;
+  const texFile = `${id}.tex`;
+  const pdfFile = `${id}.pdf`;
+  const texPath = path.join(workspaceDir, texFile);
+  const pdfPath = path.join(workspaceDir, pdfFile);
+
+  const full = [
+    '\\documentclass[12pt]{article}',
+    '\\usepackage[T1]{fontenc}',
+    '\\usepackage[utf8]{inputenc}',
+    '\\usepackage{mathtools,amssymb,amsthm}',
+    '\\usepackage{geometry}',
+    '\\geometry{margin=1in}',
+    '\\usepackage{hyperref}',
+    '\\newtheorem{theorem}{Theorem}[section]',
+    '\\newtheorem{lemma}[theorem]{Lemma}',
+    '\\newtheorem{corollary}[theorem]{Corollary}',
+    '\\newtheorem{definition}[theorem]{Definition}',
+    '\\newtheorem{remark}[theorem]{Remark}',
+    '\\theoremstyle{remark}',
+    '\\newtheorem{example}[theorem]{Example}',
+    '\\setcounter{section}{0}',
+    '\\begin{document}',
+    latex,
+    '\\end{document}',
+    '',
+  ].join('\n');
+
+  await fs.writeFile(texPath, full, 'utf-8');
+
+  const dockerBin = await resolveDockerBin();
+  // When running inside Docker with socket mounting, the volume path must be
+  // the host path. HOST_WORKSPACE_DIR overrides workspaceDir for that argument.
+  const volumeSrc = process.env['HOST_WORKSPACE_DIR'] ?? workspaceDir;
+
+  try {
+    for (let pass = 1; pass <= 2; pass++) {
+      const q = (s: string) => (s.includes(' ') ? `"${s}"` : s);
+      const cmd = [
+        q(dockerBin), 'run', '--rm',
+        '--volume', q(`${volumeSrc}:/workspace`),
+        '--workdir', '/workspace',
+        DEFAULT_DOCKER_IMAGE, 'pdflatex',
+        '-interaction=nonstopmode',
+        '-output-directory=/workspace',
+        texFile,
+      ].join(' ');
+      await execAsync(cmd, { maxBuffer: 10 * 1024 * 1024 });
+    }
+
+    const pdfBytes = await fs.readFile(pdfPath);
+    return { success: true, pdfBytes };
+  } catch (err: unknown) {
+    return { success: false, error: dockerError(err, dockerBin) };
+  } finally {
+    const exts = ['.tex', '.aux', '.log', '.out', '.pdf'];
+    await Promise.allSettled(
+      exts.map((ext) => fs.unlink(path.join(workspaceDir, `${id}${ext}`))),
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------

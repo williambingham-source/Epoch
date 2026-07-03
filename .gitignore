@@ -25,6 +25,9 @@ docker-test/**/*.pdf
 # Gitea server data (local Docker volume)
 gitea/data/
 
+# Environment / secrets
+.env
+
 # OS
 .DS_Store
 Thumbs.db

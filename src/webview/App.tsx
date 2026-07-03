@@ -7,15 +7,14 @@ import type {
   CompileResult,
   RemoteInfo,
   SyncResult,
-  ReviewInfo,
+  ReviewRequest,
+  ProjectStatus,
   ToWebview,
 } from './types.js';
-import { BreadcrumbBar } from './components/BreadcrumbBar.js';
-import { NodeEditor } from './components/NodeEditor.js';
-import { ChildList } from './components/ChildList.js';
-import { CompilePanel } from './components/CompilePanel.js';
-import { PdfViewer } from './components/PdfViewer.js';
-import { SyncPanel } from './components/SyncPanel.js';
+import type { LayoutMode, SharedLayoutProps } from './layoutProps.js';
+import { AnalyticalLayout } from './layouts/AnalyticalLayout.js';
+import { FocusLayout } from './layouts/FocusLayout.js';
+import { NavigatorLayout } from './layouts/NavigatorLayout.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -45,30 +44,13 @@ function getAncestors(nodes: NodeEntry[], currentPath: string | null): NodeEntry
 }
 
 // ---------------------------------------------------------------------------
-// Workspace home (shown when no node is selected)
-// ---------------------------------------------------------------------------
-
-function WorkspaceHome({ manifest, nodeCount }: { manifest: Manifest; nodeCount: number }) {
-  return (
-    <div className="workspace-home">
-      <h1>{manifest.name}</h1>
-      {manifest.description && <p className="description">{manifest.description}</p>}
-      <p className="muted">
-        {nodeCount} {nodeCount === 1 ? 'node' : 'nodes'} &middot; created{' '}
-        {new Date(manifest.createdAt).toLocaleDateString()}
-      </p>
-      <p className="muted" style={{ marginTop: 12 }}>
-        Select a node from the sidebar to view or edit it, or add a new top-level node.
-      </p>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // App
 // ---------------------------------------------------------------------------
 
 export function App() {
+  // Restore layout preference from VS Code webview state
+  const savedState = vscode.getState() as { layoutMode?: LayoutMode } | undefined;
+
   const [ready, setReady] = useState(false);
   const [workspaceDir, setWorkspaceDir] = useState('');
   const [manifest, setManifest] = useState<Manifest | null>(null);
@@ -82,16 +64,14 @@ export function App() {
   const [pdfFileName, setPdfFileName] = useState('');
   const [viewMode, setViewMode] = useState<'edit' | 'pdf'>('edit');
   const [error, setError] = useState<string | null>(null);
-  // Sync state
   const [remoteInfo, setRemoteInfo] = useState<RemoteInfo | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [lastSyncResult, setLastSyncResult] = useState<SyncResult | null>(null);
   const [lastSyncAction, setLastSyncAction] = useState<'push' | 'pull' | null>(null);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
-  // Review state
-  const [reviewPending, setReviewPending] = useState(false);
-  const [lastReview, setLastReview] = useState<ReviewInfo | null>(null);
-  const [reviewNodePath, setReviewNodePath] = useState<string | null>(null);
+  const [reviews, setReviews] = useState<ReviewRequest[]>([]);
+  const [activeReview, setActiveReview] = useState<ReviewRequest | null>(null);
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>(savedState?.layoutMode ?? 'analytical');
 
   // Receive messages from the extension host
   useEffect(() => {
@@ -102,6 +82,7 @@ export function App() {
           setWorkspaceDir(msg.workspaceDir);
           setManifest(msg.manifest);
           setNodes(msg.nodes);
+          setReviews(msg.reviews);
           setReady(true);
           setError(null);
           break;
@@ -126,9 +107,11 @@ export function App() {
           setLastSyncAction(msg.action);
           setLastSyncTime(new Date());
           break;
-        case 'reviewOpened':
-          setReviewPending(false);
-          setLastReview(msg.info);
+        case 'reviews':
+          setReviews(msg.reviews);
+          setActiveReview((prev) =>
+            prev ? (msg.reviews.find((r) => r.id === prev.id) ?? null) : null,
+          );
           break;
         case 'error':
           setCompiling(false);
@@ -138,7 +121,6 @@ export function App() {
       }
     };
     window.addEventListener('message', handler);
-    // Signal to the extension that we're ready to receive data
     vscode.postMessage({ type: 'ready' });
     return () => window.removeEventListener('message', handler);
   }, []);
@@ -151,17 +133,15 @@ export function App() {
     }
   }, [nodes, currentPath]);
 
-  // When navigating to a node, load a fresh editable copy
+  // ---------------------------------------------------------------------------
+  // Handlers
+  // ---------------------------------------------------------------------------
+
   const handleNavigate = (path: string | null) => {
     setCurrentPath(path);
+    setActiveReview(null);
     setCompileResult(null);
     setError(null);
-    // Clear review state when moving to a different node
-    if (path !== reviewNodePath) {
-      setLastReview(null);
-      setReviewPending(false);
-      setReviewNodePath(null);
-    }
     if (path) {
       const entry = nodes.find((n) => n.path === path);
       if (entry) {
@@ -183,7 +163,6 @@ export function App() {
   const handleSave = () => {
     if (!currentPath || !editingNode) return;
     vscode.postMessage({ type: 'saveNode', nodePath: currentPath, node: editingNode });
-    // Optimistically update local nodes so the sidebar reflects title/status changes
     setNodes((prev) =>
       prev.map((n) => (n.path === currentPath ? { ...n, node: editingNode } : n)),
     );
@@ -203,6 +182,10 @@ export function App() {
     setCompileResult(null);
     setError(null);
     vscode.postMessage({ type: 'compile' });
+  };
+
+  const handleToggleView = () => {
+    setViewMode((m) => (m === 'pdf' ? 'edit' : 'pdf'));
   };
 
   const handlePush = () => {
@@ -226,13 +209,32 @@ export function App() {
     vscode.postMessage({ type: 'openExternal', url });
   };
 
-  const handleRequestReview = (node: ResearchNode) => {
+  const handleRequestReview = (proposedStatus: ProjectStatus, comment: string) => {
     if (!currentPath) return;
-    setReviewPending(true);
-    setReviewNodePath(currentPath);
-    setLastReview(null);
-    vscode.postMessage({ type: 'openReview', nodePath: currentPath, node });
+    vscode.postMessage({ type: 'createReview', nodePath: currentPath, proposedStatus, comment });
   };
+
+  const handleSubmitDecision = (
+    reviewId: string,
+    verdict: 'approved' | 'rejected',
+    comment: string,
+  ) => {
+    vscode.postMessage({ type: 'submitDecision', reviewId, verdict, comment });
+  };
+
+  const handleOpenReview = (review: ReviewRequest) => {
+    setActiveReview(review);
+    setViewMode('edit');
+  };
+
+  const handleSetLayout = (mode: LayoutMode) => {
+    setLayoutMode(mode);
+    vscode.setState({ layoutMode: mode });
+  };
+
+  // ---------------------------------------------------------------------------
+  // Loading
+  // ---------------------------------------------------------------------------
 
   if (!ready) {
     return (
@@ -242,87 +244,84 @@ export function App() {
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // Derived state
+  // ---------------------------------------------------------------------------
+
   const ancestors = getAncestors(nodes, currentPath);
   const directChildren = getDirectChildren(nodes, currentPath);
-  const currentEntry = currentPath ? nodes.find((n) => n.path === currentPath) : null;
+  const currentEntry = currentPath ? nodes.find((n) => n.path === currentPath) ?? null : null;
 
-  return (
-    <div className="epoch-container">
-      <BreadcrumbBar
-        manifest={manifest!}
-        ancestors={ancestors}
-        currentEntry={currentEntry ?? null}
-        onNavigate={handleNavigate}
-      />
+  const nodeReview = currentPath
+    ? (reviews.find((r) => r.nodePath === currentPath && r.status === 'pending') ??
+       reviews.find((r) => r.nodePath === currentPath) ??
+       null)
+    : null;
 
-      {error && (
-        <div
-          style={{
-            padding: '8px 16px',
-            background: '#2a1a1a',
-            color: '#f38ba8',
-            fontSize: '0.85em',
-            borderBottom: '1px solid #45475a',
-          }}
-        >
-          {error}
-        </div>
-      )}
+  const showReview = activeReview !== null;
+  const showPdf = !showReview && viewMode === 'pdf' && pdfBase64 !== null;
+  const showEditor = !showReview && !showPdf && currentPath !== null && editingNode !== null;
 
-      <div className="epoch-main">
-        <div className="epoch-content">
-          {viewMode === 'pdf' && pdfBase64 ? (
-            <PdfViewer base64={pdfBase64} fileName={pdfFileName} />
-          ) : currentPath && editingNode ? (
-            <NodeEditor
-              nodePath={currentPath}
-              node={editingNode}
-              savedStatus={currentEntry?.node.status ?? editingNode.status}
-              allNodes={nodes}
-              isDirty={isDirty}
-              reviewPending={reviewPending}
-              lastReview={reviewNodePath === currentPath ? lastReview : null}
-              onChange={handleNodeChange}
-              onSave={handleSave}
-              onOpenFolder={handleOpenFolder}
-              onRequestReview={handleRequestReview}
-              onOpenExternal={handleOpenExternal}
-            />
-          ) : (
-            <WorkspaceHome manifest={manifest!} nodeCount={nodes.length} />
-          )}
-        </div>
+  // ---------------------------------------------------------------------------
+  // Shared props bundle
+  // ---------------------------------------------------------------------------
 
-        <div className="epoch-sidebar">
-          <ChildList
-            parentPath={currentPath}
-            children={directChildren}
-            onNavigate={handleNavigate}
-            onAdd={handleAddNode}
-          />
-        </div>
-      </div>
+  const layoutProps: SharedLayoutProps = {
+    workspaceDir,
+    manifest: manifest!,
+    nodes,
+    currentPath,
+    ancestors,
+    directChildren,
+    currentEntry,
+    editingNode,
+    isDirty,
+    nodeReview,
+    compiling,
+    compileResult,
+    pdfBase64,
+    pdfFileName,
+    viewMode,
+    showReview,
+    showPdf,
+    showEditor,
+    error,
+    remoteInfo,
+    syncing,
+    lastSyncResult,
+    lastSyncAction,
+    lastSyncTime,
+    reviews,
+    activeReview,
+    layoutMode,
+    onNavigate: handleNavigate,
+    onNodeChange: handleNodeChange,
+    onSave: handleSave,
+    onAddNode: handleAddNode,
+    onOpenFolder: handleOpenFolder,
+    onCompile: handleCompile,
+    onToggleView: handleToggleView,
+    onPush: handlePush,
+    onPull: handlePull,
+    onRefreshRemote: handleRefreshRemote,
+    onOpenExternal: handleOpenExternal,
+    onRequestReview: handleRequestReview,
+    onSubmitDecision: handleSubmitDecision,
+    onOpenReview: handleOpenReview,
+    onCloseReview: () => setActiveReview(null),
+    onSetLayout: handleSetLayout,
+  };
 
-      <CompilePanel
-        workspaceDir={workspaceDir}
-        compiling={compiling}
-        result={compileResult}
-        hasPdf={pdfBase64 !== null}
-        viewMode={viewMode}
-        onCompile={handleCompile}
-        onToggleView={() => setViewMode((m) => (m === 'pdf' ? 'edit' : 'pdf'))}
-      />
-      <SyncPanel
-        remoteInfo={remoteInfo}
-        syncing={syncing}
-        lastResult={lastSyncResult}
-        lastAction={lastSyncAction}
-        lastSyncTime={lastSyncTime}
-        onPush={handlePush}
-        onPull={handlePull}
-        onRefresh={handleRefreshRemote}
-        onOpenExternal={handleOpenExternal}
-      />
-    </div>
-  );
+  // ---------------------------------------------------------------------------
+  // Render active layout
+  // ---------------------------------------------------------------------------
+
+  switch (layoutMode) {
+    case 'analytical':
+      return <AnalyticalLayout {...layoutProps} />;
+    case 'focus':
+      return <FocusLayout {...layoutProps} />;
+    case 'navigator':
+      return <NavigatorLayout {...layoutProps} />;
+  }
 }

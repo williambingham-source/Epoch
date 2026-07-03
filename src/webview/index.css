@@ -475,3 +475,939 @@ body {
 .pdf-error {
   padding: 16px 0;
 }
+
+/* -------------------------------------------------------------------------
+   Review approve button (green primary)
+   ---------------------------------------------------------------------- */
+.review-approve-btn {
+  background: #1b3a1b;
+  color: #a6e3a1;
+  border: 1px solid #2a4a2a;
+}
+.review-approve-btn:hover {
+  background: #243e24;
+}
+
+/* -------------------------------------------------------------------------
+   Review banners in NodeEditor
+   ---------------------------------------------------------------------- */
+.review-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 0.88em;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  border: 1px solid transparent;
+}
+.review-banner-pending {
+  background: #2a2a1b;
+  border-color: #4a4a2a;
+  color: #f9e2af;
+}
+.review-banner-approved {
+  background: #1b2a1b;
+  border-color: #2a4a2a;
+  color: #a6e3a1;
+}
+.review-banner-rejected {
+  background: #2a1b1b;
+  border-color: #4a2a2a;
+  color: #f38ba8;
+}
+.review-banner-icon {
+  flex-shrink: 0;
+  font-size: 1.1em;
+}
+.review-banner-link {
+  color: var(--vscode-textLink-foreground, #89b4fa);
+  font-size: 0.9em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* -------------------------------------------------------------------------
+   Inline review request form in NodeEditor
+   ---------------------------------------------------------------------- */
+.review-request-form {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--vscode-focusBorder, #89b4fa);
+  border-radius: 4px;
+  background: var(--vscode-editor-background, #1e1e2e);
+}
+.review-request-comment {
+  width: 100%;
+  background: var(--vscode-input-background, #313244);
+  color: var(--vscode-input-foreground, #cdd6f4);
+  border: 1px solid var(--vscode-input-border, #45475a);
+  padding: 6px 8px;
+  font-family: inherit;
+  font-size: inherit;
+  border-radius: 2px;
+  resize: vertical;
+  outline: none;
+}
+.review-request-comment:focus {
+  border-color: var(--vscode-focusBorder, #89b4fa);
+}
+
+/* -------------------------------------------------------------------------
+   Reviews panel (bottom of sidebar)
+   ---------------------------------------------------------------------- */
+.reviews-panel {
+  border-top: 1px solid var(--vscode-panel-border, #3b3b5c);
+  flex-shrink: 0;
+}
+
+.review-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 6px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--vscode-badge-background, #4d8af0);
+  color: var(--vscode-badge-foreground, #fff);
+  font-size: 0.75em;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.review-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 14px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--vscode-panel-border, #3b3b5c);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--vscode-editor-foreground, #cdd6f4);
+}
+.review-card:hover {
+  background: var(--vscode-list-hoverBackground, #313244);
+}
+.review-card-icon {
+  flex-shrink: 0;
+  font-size: 1em;
+  margin-top: 1px;
+}
+.review-card-icon.approved { color: #a6e3a1; }
+.review-card-icon.rejected { color: #f38ba8; }
+.review-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.review-card-title {
+  font-size: 0.88em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.review-card-meta {
+  font-size: 0.78em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.review-card-resolved .review-card-title {
+  opacity: 0.7;
+}
+.reviews-divider {
+  height: 1px;
+  background: var(--vscode-panel-border, #3b3b5c);
+  margin: 2px 0;
+}
+
+/* -------------------------------------------------------------------------
+   ReviewView — full-screen review experience
+   ---------------------------------------------------------------------- */
+.review-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.review-view-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--vscode-panel-border, #3b3b5c);
+  margin-bottom: 0;
+  flex-shrink: 0;
+}
+.review-view-title {
+  flex: 1;
+  font-size: 1em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.review-view-arrow {
+  color: var(--vscode-descriptionForeground, #a6adc8);
+}
+
+.review-view-body {
+  display: flex;
+  flex: 1;
+  gap: 0;
+  overflow: hidden;
+  margin-top: 0;
+}
+
+.review-view-meta {
+  width: 220px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  padding: 12px 12px 12px 0;
+  border-right: 1px solid var(--vscode-panel-border, #3b3b5c);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.review-meta-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.review-comment-text {
+  font-size: 0.88em;
+  color: var(--vscode-editor-foreground, #cdd6f4);
+  white-space: pre-wrap;
+}
+
+.review-decision-badge {
+  padding: 6px 8px;
+  border-radius: 4px;
+  font-size: 0.85em;
+}
+.review-decision-badge.approved {
+  background: #1b2a1b;
+  border: 1px solid #2a4a2a;
+  color: #a6e3a1;
+}
+.review-decision-badge.rejected {
+  background: #2a1b1b;
+  border: 1px solid #4a2a2a;
+  color: #f38ba8;
+}
+
+.review-view-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-left: 12px;
+}
+
+.review-content-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--vscode-panel-border, #3b3b5c);
+  margin-bottom: 0;
+}
+
+.review-content-pre {
+  flex: 1;
+  overflow: auto;
+  margin: 0;
+  padding: 12px;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.82em;
+  line-height: 1.5;
+  background: var(--vscode-editor-background, #1e1e2e);
+  color: var(--vscode-editor-foreground, #cdd6f4);
+  white-space: pre;
+  tab-size: 2;
+}
+
+.review-view-decision {
+  flex-shrink: 0;
+  padding: 10px 0 0;
+  border-top: 1px solid var(--vscode-panel-border, #3b3b5c);
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+.review-decision-comment {
+  flex: 1;
+  background: var(--vscode-input-background, #313244);
+  color: var(--vscode-input-foreground, #cdd6f4);
+  border: 1px solid var(--vscode-input-border, #45475a);
+  padding: 6px 8px;
+  font-family: inherit;
+  font-size: inherit;
+  border-radius: 2px;
+  resize: none;
+  outline: none;
+}
+.review-decision-comment:focus {
+  border-color: var(--vscode-focusBorder, #89b4fa);
+}
+.review-decision-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* =========================================================================
+   LAYOUT SWITCHER TABS (shared across all layouts)
+   ========================================================================= */
+
+.layout-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 10px;
+  border-left: 1px solid var(--vscode-panel-border, #3b3b5c);
+  flex-shrink: 0;
+}
+
+.layout-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--vscode-descriptionForeground, #a6adc8);
+  padding: 5px 10px;
+  cursor: pointer;
+  font-size: 0.82em;
+  font-family: inherit;
+  white-space: nowrap;
+  transition: color 0.1s;
+}
+.layout-tab:hover {
+  color: var(--vscode-editor-foreground, #cdd6f4);
+}
+.layout-tab.active {
+  color: var(--vscode-textLink-foreground, #89b4fa);
+  border-bottom-color: var(--vscode-textLink-foreground, #89b4fa);
+}
+
+/* Error banner */
+.error-banner {
+  padding: 8px 16px;
+  background: #2a1a1a;
+  color: #f38ba8;
+  font-size: 0.85em;
+  border-bottom: 1px solid #45475a;
+  flex-shrink: 0;
+}
+
+/* =========================================================================
+   LAYOUT A — ANALYTICAL (3-column)
+   ========================================================================= */
+
+.la-topbar {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--vscode-panel-border, #3b3b5c);
+  flex-shrink: 0;
+  min-height: 36px;
+  overflow: hidden;
+}
+
+/* la-topbar hosts the BreadcrumbBar which has its own padding; just stretch it */
+.la-topbar .epoch-breadcrumb {
+  flex: 1;
+  border-bottom: none;
+  min-width: 0;
+}
+
+.la-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Center column */
+.la-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+  min-width: 0;
+}
+
+.la-statusbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 14px;
+  border-top: 1px solid var(--vscode-panel-border, #3b3b5c);
+  flex-shrink: 0;
+  font-size: 0.82em;
+  background: var(--vscode-statusBar-background, #1e1e2e);
+  color: var(--vscode-statusBar-foreground, #a6adc8);
+  min-height: 26px;
+  overflow: hidden;
+}
+
+/* ── Node Tree (Layout A left panel) ── */
+
+.node-tree {
+  width: 220px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--vscode-panel-border, #3b3b5c);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--vscode-sideBar-background, #1e1e2e);
+}
+
+.node-tree-header {
+  display: flex;
+  align-items: center;
+  padding: 6px 10px 4px;
+  border-bottom: 1px solid var(--vscode-panel-border, #3b3b5c);
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.node-tree-ws {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--vscode-editor-foreground, #cdd6f4);
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.85em;
+  cursor: pointer;
+  text-align: left;
+  padding: 2px 4px;
+  border-radius: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.node-tree-ws:hover,
+.node-tree-ws.active {
+  color: var(--vscode-textLink-foreground, #89b4fa);
+}
+
+.node-tree-add-root {
+  background: none;
+  border: none;
+  color: var(--vscode-descriptionForeground, #a6adc8);
+  cursor: pointer;
+  font-size: 1.1em;
+  padding: 1px 5px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.node-tree-add-root:hover {
+  background: var(--vscode-list-hoverBackground, #313244);
+  color: var(--vscode-editor-foreground, #cdd6f4);
+}
+
+.node-tree-search {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--vscode-panel-border, #3b3b5c);
+  flex-shrink: 0;
+}
+.node-tree-search input {
+  width: 100%;
+  background: var(--vscode-input-background, #313244);
+  color: var(--vscode-input-foreground, #cdd6f4);
+  border: 1px solid var(--vscode-input-border, #45475a);
+  padding: 4px 8px;
+  font-family: inherit;
+  font-size: 0.85em;
+  border-radius: 2px;
+  outline: none;
+}
+.node-tree-search input:focus {
+  border-color: var(--vscode-focusBorder, #89b4fa);
+}
+
+.node-tree-add-form {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--vscode-panel-border, #3b3b5c);
+  flex-shrink: 0;
+}
+.node-tree-add-form input {
+  width: 100%;
+  background: var(--vscode-input-background, #313244);
+  color: var(--vscode-input-foreground, #cdd6f4);
+  border: 1px solid var(--vscode-focusBorder, #89b4fa);
+  padding: 4px 8px;
+  font-family: inherit;
+  font-size: 0.85em;
+  border-radius: 2px;
+  outline: none;
+  margin-bottom: 4px;
+}
+
+.node-tree-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.node-tree-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px;
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  user-select: none;
+}
+.node-tree-item:hover {
+  background: var(--vscode-list-hoverBackground, #313244);
+}
+.node-tree-item.active {
+  background: var(--vscode-list-activeSelectionBackground, #264f78);
+  border-left-color: var(--vscode-textLink-foreground, #89b4fa);
+}
+
+.node-tree-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.node-tree-name {
+  flex: 1;
+  font-size: 0.88em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.node-tree-review-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #f9e2af;
+  flex-shrink: 0;
+}
+
+/* ── Context Panel (Layout A right column) ── */
+
+.ctx-panel {
+  width: 240px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--vscode-panel-border, #3b3b5c);
+  overflow-y: auto;
+  background: var(--vscode-sideBar-background, #1e1e2e);
+  display: flex;
+  flex-direction: column;
+}
+
+.ctx-section {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--vscode-panel-border, #3b3b5c);
+}
+
+.ctx-section-label {
+  font-size: 0.78em;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--vscode-descriptionForeground, #a6adc8);
+  font-weight: 600;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+}
+
+.ctx-dep {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+}
+
+.ctx-dep-title {
+  font-size: 0.85em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ctx-review-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 7px 0;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--vscode-editor-foreground, #cdd6f4);
+  border-radius: 3px;
+}
+.ctx-review-item:hover {
+  background: var(--vscode-list-hoverBackground, #313244);
+  margin: 0 -6px;
+  padding-left: 6px;
+  padding-right: 6px;
+  width: calc(100% + 12px);
+}
+
+.ctx-review-title {
+  font-size: 0.85em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ctx-review-body {
+  flex: 1;
+  min-width: 0;
+}
+
+/* =========================================================================
+   LAYOUT B — FOCUS (writer mode)
+   ========================================================================= */
+
+.lb-topbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px 0 0;
+  border-bottom: 1px solid var(--vscode-panel-border, #3b3b5c);
+  flex-shrink: 0;
+  min-height: 38px;
+  overflow: hidden;
+}
+
+.lb-topbar .epoch-breadcrumb {
+  flex: none;
+  border-bottom: none;
+  padding-right: 0;
+}
+
+.lb-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 40px;
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+/* Bottom drawer */
+.lb-drawer {
+  flex-shrink: 0;
+  border-top: 1px solid var(--vscode-panel-border, #3b3b5c);
+  background: var(--vscode-sideBar-background, #1e1e2e);
+  display: flex;
+  flex-direction: column;
+  max-height: 220px;
+}
+
+.lb-drawer-tabs {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--vscode-panel-border, #3b3b5c);
+  flex-shrink: 0;
+}
+
+.lb-dtab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--vscode-descriptionForeground, #a6adc8);
+  padding: 7px 14px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.82em;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+}
+.lb-dtab:hover {
+  color: var(--vscode-editor-foreground, #cdd6f4);
+}
+.lb-dtab.active {
+  color: var(--vscode-textLink-foreground, #89b4fa);
+  border-bottom-color: var(--vscode-textLink-foreground, #89b4fa);
+}
+
+.lb-drawer-content {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.lb-drawer-pane {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  flex-wrap: wrap;
+}
+
+/* Thin status / compile bar */
+.lb-statusbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 3px 14px;
+  border-top: 1px solid var(--vscode-panel-border, #3b3b5c);
+  flex-shrink: 0;
+  font-size: 0.8em;
+  background: var(--vscode-statusBar-background, #1e1e2e);
+  color: var(--vscode-statusBar-foreground, #a6adc8);
+  min-height: 24px;
+  overflow: hidden;
+}
+
+.lb-compile-btn {
+  background: none;
+  border: none;
+  color: var(--vscode-textLink-foreground, #89b4fa);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.95em;
+  padding: 0;
+  white-space: nowrap;
+}
+.lb-compile-btn:hover { opacity: 0.8; }
+.lb-compile-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.active-drawer-btn {
+  border-color: var(--vscode-focusBorder, #89b4fa) !important;
+  color: var(--vscode-textLink-foreground, #89b4fa) !important;
+}
+
+/* =========================================================================
+   LAYOUT C — NAVIGATOR (card grid)
+   ========================================================================= */
+
+.lc-topbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--vscode-panel-border, #3b3b5c);
+  flex-shrink: 0;
+  min-height: 40px;
+  flex-wrap: wrap;
+  overflow: hidden;
+}
+
+.lc-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.9em;
+  flex-shrink: 0;
+}
+
+.lc-crumb-root {
+  background: none;
+  border: none;
+  color: var(--vscode-editor-foreground, #cdd6f4);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 2px;
+}
+.lc-crumb-root:hover { color: var(--vscode-textLink-foreground, #89b4fa); }
+
+.lc-crumb-sep {
+  color: var(--vscode-descriptionForeground, #a6adc8);
+  user-select: none;
+}
+
+.lc-crumb {
+  background: none;
+  border: none;
+  color: var(--vscode-textLink-foreground, #89b4fa);
+  font: inherit;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 2px;
+}
+.lc-crumb:hover { text-decoration: underline; }
+.lc-crumb.lc-crumb-cur {
+  color: var(--vscode-editor-foreground, #cdd6f4);
+  cursor: default;
+}
+.lc-crumb.lc-crumb-cur:hover { text-decoration: none; }
+
+.lc-filters {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.lc-filter-chip {
+  background: none;
+  border: 1px solid var(--vscode-panel-border, #3b3b5c);
+  border-radius: 3px;
+  color: var(--vscode-descriptionForeground, #a6adc8);
+  padding: 2px 9px;
+  font-size: 0.8em;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.lc-filter-chip:hover {
+  color: var(--vscode-editor-foreground, #cdd6f4);
+  border-color: var(--vscode-descriptionForeground, #a6adc8);
+}
+.lc-filter-chip.active {
+  color: var(--vscode-textLink-foreground, #89b4fa);
+  border-color: var(--vscode-textLink-foreground, #89b4fa);
+  background: var(--vscode-list-activeSelectionBackground, #264f78);
+}
+
+/* Body: grid + detail panel side by side */
+.lc-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.lc-grid-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  min-width: 0;
+}
+
+.lc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+/* Individual node card */
+.lc-card {
+  background: var(--vscode-sideBar-background, #1e1e2e);
+  border: 1px solid var(--vscode-panel-border, #3b3b5c);
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: border-color 0.1s;
+}
+.lc-card:hover {
+  border-color: var(--vscode-textLink-foreground, #89b4fa);
+}
+.lc-card.selected {
+  border-color: var(--vscode-textLink-foreground, #89b4fa);
+  background: var(--vscode-list-activeSelectionBackground, #264f78);
+}
+
+.lc-card-accent {
+  height: 3px;
+  flex-shrink: 0;
+}
+
+.lc-card-body {
+  padding: 12px 14px 8px;
+  flex: 1;
+}
+
+.lc-card-title {
+  font-size: 0.95em;
+  font-weight: 600;
+  margin-bottom: 5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lc-card-desc {
+  font-size: 0.82em;
+  color: var(--vscode-descriptionForeground, #a6adc8);
+  line-height: 1.5;
+  margin-bottom: 8px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.lc-card-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.lc-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 14px;
+  border-top: 1px solid var(--vscode-panel-border, #3b3b5c);
+  background: var(--vscode-editor-background, #1e1e2e);
+}
+
+/* Detail panel */
+.lc-detail {
+  width: 340px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--vscode-panel-border, #3b3b5c);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--vscode-sideBar-background, #1e1e2e);
+}
+
+.lc-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--vscode-panel-border, #3b3b5c);
+  flex-shrink: 0;
+}
+
+.lc-detail-title {
+  flex: 1;
+  font-size: 1em;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lc-detail-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+.lc-detail-body .ctx-section {
+  padding: 10px 16px;
+}
+
+.lc-detail-actions {
+  display: flex;
+  gap: 6px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--vscode-panel-border, #3b3b5c);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}

@@ -165,9 +165,86 @@ Add Git remote sync and lay groundwork for real-time collaboration.
 - [x] MCP tools: `push_workspace` · `pull_workspace` · `get_remote_info`
 - [x] `src/core/workspace.ts` — isomorphic-git commits made best-effort so
   node saves succeed when workspace lives inside a parent git repo
-- [ ] `src/tools/review.ts` — Gitea/GitHub API client for PR-based review
-  (open_review, merge_review — deferred to Phase 5)
+- [x] `src/types/review.ts` + `src/core/reviews.ts` — in-app review system
+  (createReview, listReviews, submitDecision — stored as `reviews/*.json` in git)
+- [x] `ReviewsPanel` sidebar section, `ReviewView` full-screen reviewer UI
+- [x] NodeEditor inline request form + status banners
+- [x] MCP tools: `create_review` · `list_reviews` · `submit_decision`
+- [x] Gitea PR-based review (`src/tools/review.ts`) removed — see `plan/pr.md`
 - [ ] Yjs integration scaffold — deferred
+
+---
+
+## Phase 5 — Mobile / Tablet UI via Excalidraw (planned)
+
+Provide a touch-first canvas interface for navigating and annotating the Fractal
+Workspace — ideal for iPad or Android tablet use during seminars or away from a
+keyboard.
+
+### Architecture
+
+The Epoch-Excalidraw integration runs as a **separate Docker service** alongside
+Gitea. It serves a customised build of Excalidraw on **port 3001**. Epoch nodes
+are represented as Excalidraw elements; edits sync back to the workspace via the
+MCP server (create/update/move nodes without touching a keyboard).
+
+### Repo
+
+- GitHub upstream: `https://github.com/excalidraw/excalidraw` (remote `upstream`)
+- Local Gitea fork: `http://localhost:3000/william/excalidraw` (remote `origin`)
+- Local path: `C:\Users\The Binghams\OneDrive\Desktop\Excalidraw`
+
+### Deliverables
+
+- [x] Shallow-clone upstream → Desktop/Excalidraw, remote `upstream`
+- [x] Unshallow and push full history to Gitea `william/excalidraw` (remote `origin`)
+- [x] `docker-compose.epoch.yml` — `epoch-excalidraw` container, port 3001, production build
+- [ ] Epoch-specific Excalidraw scene schema: each node ↔ one Excalidraw frame
+- [ ] Custom sidebar panel: node metadata (status, title, dependencies) visible in canvas
+- [ ] Epoch API bridge: thin HTTP server wrapping the MCP tools so Excalidraw can
+  read/write nodes without a VS Code extension host
+- [ ] Deep-link from Epoch VS Code panel → open node in Excalidraw canvas
+- [ ] Two-way sync: canvas drag-to-reorder re-parents nodes in the workspace
+
+### Starting the Excalidraw service
+
+```bash
+# First build takes ~5 min (downloads node_modules, compiles React app)
+docker compose -f "C:\Users\The Binghams\OneDrive\Desktop\Excalidraw\docker-compose.epoch.yml" up -d --build
+# Serves at http://localhost:3001
+```
+
+---
+
+## Phase 6 — User State & Security (planned)
+
+Add multi-user identity, persistent session state, and access controls so that
+workspaces can be shared with meaningful trust boundaries.
+
+**Deliverables (TBD):**
+- [ ] **User identity** — named user profiles stored in `~/.epoch/identity.json`
+  (name, email, optional key pair). Used to sign review decisions and commits.
+- [ ] **Workspace access roles** — `manifest.json` gains an `access` field:
+  `owner`, `reviewer`, `reader`. Enforced by the extension host before any write.
+- [ ] **Signed review decisions** — `ReviewDecision` includes a detached signature
+  over `{reviewId, verdict, at}` using the reviewer's identity key, so approvals
+  cannot be forged by editing the JSON.
+- [ ] **Auth for Gitea push/pull** — credentials stored in the OS keychain
+  (VS Code `SecretStorage`) rather than embedded in the remote URL.
+- [ ] **Audit log** — append-only `audit.log` in the workspace root, recording
+  every status change and review decision with timestamp and identity.
+- [ ] **Read-only mode** — when the current user has `reader` role, all save/add/
+  review-request actions are disabled in the UI with a clear explanation.
+
+---
+
+## Next Steps / Housekeeping
+
+- **Move repos off OneDrive** — relocate `Epoch` and `Excalidraw` from
+  `OneDrive\Desktop\` to a local path (e.g. `C:\Dev\`) to avoid OneDrive
+  sync conflicts with `.git` directories, large `node_modules`, and Docker
+  volume mounts. Update any hardcoded paths in `plan.md`, `gitea/`, and the
+  Excalidraw `docker-compose.epoch.yml`.
 
 ---
 
@@ -175,5 +252,4 @@ Add Git remote sync and lay groundwork for real-time collaboration.
 
 - Yjs real-time live sync (Phase 4 scaffold only)
 - Self-hosted Gitea setup guide
-- Mobile / tablet UI
 - Export formats beyond PDF (HTML, EPUB)

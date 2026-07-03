@@ -1,0 +1,103 @@
+# Full Epoch stack: Gitea + Excalidraw + Bridge + Ollama
+# Usage:
+#   .\start-epoch.ps1                          (uses .env for config)
+#   .\start-epoch.ps1 -Down                    (stop everything)
+#   .\start-epoch.ps1 -Build                   (force image rebuild)
+#
+# Required env vars (set in .env):
+#   WORKSPACE_DIR      - absolute host path to the Epoch workspace to open
+#
+# Vision provider (set VISION_PROVIDER in .env):
+#   ollama    - free, local, CPU-only on this machine (~30-90s per image)
+#   anthropic - best quality, ~$0.02/image (needs ANTHROPIC_API_KEY)
+#   openai    - good quality, similar cost  (needs OPENAI_API_KEY)
+#   gemini    - cheapest cloud option       (needs GEMINI_API_KEY)
+
+services:
+  gitea:
+    image: gitea/gitea:latest
+    container_name: epoch-gitea
+    environment:
+      - USER_UID=1000
+      - USER_GID=1000
+      - GITEA__database__DB_TYPE=sqlite3
+      - GITEA__server__HTTP_PORT=3000
+      - GITEA__server__ROOT_URL=http://localhost:3000/
+      - GITEA__security__INSTALL_LOCK=true
+      - GITEA__log__MODE=console
+    volumes:
+      - ./gitea/data:/data
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  excalidraw:
+    image: epoch-excalidraw:latest
+    container_name: epoch-excalidraw
+    build:
+      context: ../Excalidraw
+      args:
+        - NODE_ENV=production
+    ports:
+      - "3001:80"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: epoch-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 30s
+
+  epoch-bridge:
+    image: epoch-bridge:latest
+    container_name: epoch-bridge
+    build:
+      context: .
+      dockerfile: bridge/Dockerfile
+    ports:
+      - "3002:3002"
+    environment:
+      - WORKSPACE_DIR=/workspace
+      - HOST_WORKSPACE_DIR=${WORKSPACE_DIR}
+      - VISION_PROVIDER=${VISION_PROVIDER:-ollama}
+      - VISION_MODEL=${VISION_MODEL:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - OLLAMA_BASE_URL=http://epoch-ollama:11434
+    volumes:
+      - ${WORKSPACE_DIR}:/workspace
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:3002/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      gitea:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+
+volumes:
+  ollama-models:

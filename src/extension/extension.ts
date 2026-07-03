@@ -10,8 +10,9 @@ import {
 } from '../core/workspace.js';
 import { compileWorkspace } from '../tools/latex-compiler.js';
 import { getRemoteInfo, pushWorkspace, pullWorkspace } from '../core/sync.js';
-import { openReview } from '../tools/review.js';
-import type { ToExtension, ToWebview, ResearchNode } from '../webview/types.js';
+import { listReviews, createReview, submitDecision } from '../core/reviews.js';
+import { runGit, findGitRoot } from '../core/_git.js';
+import type { ToExtension, ToWebview, ResearchNode, ProjectStatus } from '../webview/types.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -61,6 +62,27 @@ async function hasManifest(dir: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/** Read the git user identity for the workspace, falling back to the manifest author. */
+async function getIdentity(
+  workspaceDir: string,
+): Promise<{ name: string; email: string }> {
+  try {
+    const root = (await findGitRoot(workspaceDir)) ?? workspaceDir;
+    const [nameRes, emailRes] = await Promise.allSettled([
+      runGit(['config', 'user.name'], root),
+      runGit(['config', 'user.email'], root),
+    ]);
+    const name = nameRes.status === 'fulfilled' ? nameRes.value.stdout.trim() : '';
+    const email = emailRes.status === 'fulfilled' ? emailRes.value.stdout.trim() : '';
+    if (name && email) return { name, email };
+  } catch { /* fall through */ }
+  try {
+    const manifest = await readManifest(workspaceDir);
+    return manifest.author;
+  } catch { /* fall through */ }
+  return { name: 'Epoch User', email: 'user@local' };
 }
 
 // ---------------------------------------------------------------------------
@@ -130,11 +152,12 @@ async function resolveWorkspaceDir(): Promise<string | undefined> {
 // ---------------------------------------------------------------------------
 
 async function sendInit(panel: vscode.WebviewPanel, workspaceDir: string): Promise<void> {
-  const [manifest, nodes] = await Promise.all([
+  const [manifest, nodes, reviews] = await Promise.all([
     readManifest(workspaceDir),
     listNodes(workspaceDir),
+    listReviews(workspaceDir),
   ]);
-  const msg: ToWebview = { type: 'init', workspaceDir, manifest, nodes };
+  const msg: ToWebview = { type: 'init', workspaceDir, manifest, nodes, reviews };
   void panel.webview.postMessage(msg);
 }
 
@@ -224,7 +247,15 @@ function createPanel(context: vscode.ExtensionContext, workspaceDir: string): vs
               result,
               action: msg.action,
             } satisfies ToWebview);
-            // Refresh remote info after sync
+            // After pull, refresh nodes and reviews in case they changed
+            if (msg.action === 'pull') {
+              const [nodes, reviews] = await Promise.all([
+                listNodes(workspaceDir),
+                listReviews(workspaceDir),
+              ]);
+              void panel.webview.postMessage({ type: 'nodes', nodes } satisfies ToWebview);
+              void panel.webview.postMessage({ type: 'reviews', reviews } satisfies ToWebview);
+            }
             void getRemoteInfo(workspaceDir).then((info) => {
               void panel.webview.postMessage({ type: 'remoteInfo', info } satisfies ToWebview);
             });
@@ -242,30 +273,41 @@ function createPanel(context: vscode.ExtensionContext, workspaceDir: string): vs
             break;
           }
 
-          case 'openReview': {
-            // Get the remote URL (has credentials embedded for the API call)
-            const remoteData = await getRemoteInfo(workspaceDir);
-            if (!remoteData.url) {
-              void panel.webview.postMessage({
-                type: 'error',
-                message: 'No git remote configured — push to a Gitea remote first.',
-              } satisfies ToWebview);
-              break;
-            }
-            const reviewInfo = await openReview({
+          case 'createReview': {
+            const author = await getIdentity(workspaceDir);
+            const review = await createReview({
               workspaceDir,
               nodePath: msg.nodePath,
-              proposedNode: msg.node as Parameters<typeof openReview>[0]['proposedNode'],
-              remoteUrl: remoteData.url,
+              proposedStatus: msg.proposedStatus as Parameters<typeof createReview>[0]['proposedStatus'],
+              comment: msg.comment,
+              author,
             });
-            void panel.webview.postMessage({
-              type: 'reviewOpened',
-              info: reviewInfo,
-            } satisfies ToWebview);
-            // Refresh remote info (new branch exists now)
-            void getRemoteInfo(workspaceDir).then((info) => {
-              void panel.webview.postMessage({ type: 'remoteInfo', info } satisfies ToWebview);
+            const reviews = await listReviews(workspaceDir);
+            void panel.webview.postMessage({ type: 'reviews', reviews } satisfies ToWebview);
+            // Auto-push so the review reaches collaborators
+            void pushWorkspace(workspaceDir).catch(() => { /* non-fatal */ });
+            void review; // used above via listReviews
+            break;
+          }
+
+          case 'submitDecision': {
+            const reviewer = await getIdentity(workspaceDir);
+            await submitDecision({
+              workspaceDir,
+              reviewId: msg.reviewId,
+              verdict: msg.verdict,
+              comment: msg.comment,
+              reviewer,
             });
+            // Refresh both reviews and nodes (node status may have changed on approval)
+            const [nodes, reviews] = await Promise.all([
+              listNodes(workspaceDir),
+              listReviews(workspaceDir),
+            ]);
+            void panel.webview.postMessage({ type: 'nodes', nodes } satisfies ToWebview);
+            void panel.webview.postMessage({ type: 'reviews', reviews } satisfies ToWebview);
+            // Auto-push so the decision reaches collaborators
+            void pushWorkspace(workspaceDir).catch(() => { /* non-fatal */ });
             break;
           }
         }

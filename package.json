@@ -35,14 +35,19 @@
     "mcp": "node dist/mcp/server.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.54.0",
     "@isomorphic-git/lightning-fs": "^4.6.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
     "isomorphic-git": "^1.27.0",
     "pdfjs-dist": "^6.1.200",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
     "@types/node": "^20.0.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",

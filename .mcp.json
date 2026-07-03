@@ -3,6 +3,17 @@
     "epoch": {
       "command": "node",
       "args": ["C:\\Users\\The Binghams\\OneDrive\\Desktop\\Epoch\\dist\\mcp\\server.js"]
+    },
+    "epoch-bridge": {
+      "command": "node",
+      "args": [
+        "C:\\Users\\The Binghams\\OneDrive\\Desktop\\Epoch\\dist\\bridge\\server.js",
+        "--mcp-stdio"
+      ],
+      "env": {
+        "WORKSPACE_DIR": "C:\\Users\\The Binghams\\OneDrive\\Desktop\\Epoch\\three-distance",
+        "VISION_PROVIDER": "anthropic"
+      }
     }
   }
 }

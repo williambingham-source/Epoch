@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { NodeEntry, ResearchNode, ProjectStatus, ReviewInfo } from '../types.js';
+import type { NodeEntry, ResearchNode, ProjectStatus, ReviewRequest } from '../types.js';
 import { PROJECT_STATUSES } from '../types.js';
 
 interface Props {
@@ -9,13 +9,14 @@ interface Props {
   savedStatus: ProjectStatus;
   allNodes: NodeEntry[];
   isDirty: boolean;
-  reviewPending: boolean;
-  lastReview: ReviewInfo | null;
+  /** The most recent review for this node (any status), if one exists. */
+  nodeReview: ReviewRequest | null;
   onChange: (node: ResearchNode) => void;
   onSave: () => void;
   onOpenFolder: (nodePath: string) => void;
-  onRequestReview: (node: ResearchNode) => void;
-  onOpenExternal: (url: string) => void;
+  /** Called when user submits a review request with an optional cover note. */
+  onRequestReview: (proposedStatus: ProjectStatus, comment: string) => void;
+  onViewReview: (review: ReviewRequest) => void;
 }
 
 function statusClass(status: ProjectStatus): string {
@@ -105,6 +106,55 @@ function AddDependency({
 }
 
 // ---------------------------------------------------------------------------
+// ReviewRequestForm — inline form shown when user wants to promote status
+// ---------------------------------------------------------------------------
+
+function ReviewRequestForm({
+  fromStatus,
+  toStatus,
+  onSubmit,
+  onCancel,
+}: {
+  fromStatus: ProjectStatus;
+  toStatus: ProjectStatus;
+  onSubmit: (comment: string) => void;
+  onCancel: () => void;
+}) {
+  const [comment, setComment] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = () => {
+    setSubmitting(true);
+    onSubmit(comment.trim());
+  };
+
+  return (
+    <div className="review-request-form">
+      <p className="section-heading" style={{ marginBottom: 6 }}>
+        Request Review: {fromStatus} → {toStatus}
+      </p>
+      <textarea
+        className="review-request-comment"
+        placeholder="Optional note for the reviewer — what should they check?"
+        value={comment}
+        onChange={(e) => setComment(e.target.value)}
+        rows={3}
+        disabled={submitting}
+        autoFocus
+      />
+      <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+        <button className="btn review-approve-btn" onClick={handleSubmit} disabled={submitting}>
+          {submitting ? 'Submitting…' : '↗ Submit Request'}
+        </button>
+        <button className="btn secondary" onClick={onCancel} disabled={submitting}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // NodeEditor
 // ---------------------------------------------------------------------------
 
@@ -114,14 +164,15 @@ export function NodeEditor({
   savedStatus,
   allNodes,
   isDirty,
-  reviewPending,
-  lastReview,
+  nodeReview,
   onChange,
   onSave,
   onOpenFolder,
   onRequestReview,
-  onOpenExternal,
+  onViewReview,
 }: Props) {
+  const [showReviewForm, setShowReviewForm] = useState(false);
+
   const update = (partial: Partial<ResearchNode>) => onChange({ ...node, ...partial });
 
   const tagsValue = node.tags?.join(', ') ?? '';
@@ -131,6 +182,7 @@ export function NodeEditor({
   const savedIdx = PROJECT_STATUSES.indexOf(savedStatus);
   const editingIdx = PROJECT_STATUSES.indexOf(node.status);
   const isUpgrade = editingIdx > savedIdx && node.status !== 'Sketch';
+
   const handleTags = (raw: string) => {
     const tags = raw
       .split(',')
@@ -142,6 +194,16 @@ export function NodeEditor({
   const removeDep = (index: number) => {
     update({ validationPath: node.validationPath.filter((_, i) => i !== index) });
   };
+
+  const handleReviewSubmit = (comment: string) => {
+    onRequestReview(node.status, comment);
+    setShowReviewForm(false);
+  };
+
+  // Determine review banner content
+  const pendingReview = nodeReview?.status === 'pending' ? nodeReview : null;
+  const approvedReview = nodeReview?.status === 'approved' ? nodeReview : null;
+  const rejectedReview = nodeReview?.status === 'rejected' ? nodeReview : null;
 
   return (
     <div>
@@ -166,7 +228,10 @@ export function NodeEditor({
         <label>Status</label>
         <select
           value={node.status}
-          onChange={(e) => update({ status: e.target.value as ProjectStatus })}
+          onChange={(e) => {
+            update({ status: e.target.value as ProjectStatus });
+            setShowReviewForm(false); // reset form if status changes
+          }}
         >
           {PROJECT_STATUSES.map((s) => (
             <option key={s} value={s}>
@@ -222,35 +287,58 @@ export function NodeEditor({
           Save
         </button>
 
-        {isUpgrade && (
+        {isUpgrade && !showReviewForm && !pendingReview && (
           <button
             className="btn review-btn"
-            onClick={() => onRequestReview(node)}
-            disabled={reviewPending}
-            title={`Open a peer-review pull request to promote this node from ${savedStatus} to ${node.status}`}
+            onClick={() => setShowReviewForm(true)}
+            title={`Request peer review to promote from ${savedStatus} to ${node.status}`}
           >
-            {reviewPending ? 'Opening PR…' : `↗ Request Review (→ ${node.status})`}
+            ↗ Request Review (→ {node.status})
           </button>
         )}
 
         {isDirty && !isUpgrade && <span className="muted">Unsaved changes</span>}
       </div>
 
-      {/* Review status banner */}
-      {lastReview && (
-        <div className="review-banner">
-          <span className="review-banner-icon">⎔</span>
-          <span>
-            PR #{lastReview.prNumber} opened —{' '}
-            <strong>{lastReview.title}</strong>
+      {/* Inline review request form */}
+      {showReviewForm && isUpgrade && (
+        <ReviewRequestForm
+          fromStatus={savedStatus}
+          toStatus={node.status}
+          onSubmit={handleReviewSubmit}
+          onCancel={() => setShowReviewForm(false)}
+        />
+      )}
+
+      {/* Review status banners */}
+      {pendingReview && (
+        <button className="review-banner review-banner-pending" onClick={() => onViewReview(pendingReview)}>
+          <span className="review-banner-icon">⏳</span>
+          <span style={{ flex: 1 }}>
+            Review pending — <strong>{pendingReview.fromStatus} → {pendingReview.toStatus}</strong>
           </span>
-          <button
-            className="review-banner-link"
-            onClick={() => onOpenExternal(lastReview.url)}
-          >
-            View in Gitea →
-          </button>
-        </div>
+          <span className="review-banner-link">View →</span>
+        </button>
+      )}
+
+      {approvedReview && (
+        <button className="review-banner review-banner-approved" onClick={() => onViewReview(approvedReview)}>
+          <span className="review-banner-icon">✓</span>
+          <span style={{ flex: 1 }}>
+            Approved — promoted to <strong>{approvedReview.toStatus}</strong>
+          </span>
+          <span className="review-banner-link">View →</span>
+        </button>
+      )}
+
+      {rejectedReview && (
+        <button className="review-banner review-banner-rejected" onClick={() => onViewReview(rejectedReview)}>
+          <span className="review-banner-icon">✗</span>
+          <span style={{ flex: 1 }}>
+            Changes requested on <strong>{rejectedReview.toStatus}</strong> promotion
+          </span>
+          <span className="review-banner-link">View →</span>
+        </button>
       )}
 
       <div className="meta-row" style={{ marginTop: 24 }}>
