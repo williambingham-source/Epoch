@@ -53,7 +53,7 @@ Write-Host "[epoch] Workspace: $env:WORKSPACE_DIR" -ForegroundColor Cyan
 
 # Warn if bridge isn't reachable yet
 try {
-    Invoke-WebRequest -Uri "http://localhost:3002/health" -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop | Out-Null
+    Invoke-WebRequest -Uri "http://127.0.0.1:3002/health" -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop | Out-Null
     Write-Host "[epoch] Bridge reachable on port 3002." -ForegroundColor Green
 } catch {
     Write-Warning "[epoch] Bridge not reachable on port 3002. Start it first: .\start-bridge.ps1"
