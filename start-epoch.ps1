@@ -1,4 +1,6 @@
 #Requires -Version 5.1
+# Terminal 2: run this to bring up the Docker stack (Gitea, Excalidraw, Ollama, epoch-web).
+# Start the bridge first in Terminal 1: .\start-bridge.ps1
 param(
     [string]$Workspace = "$PSScriptRoot\three-distance",
     [switch]$Build,
@@ -33,17 +35,7 @@ if (Test-Path $envFile) {
 if ($Down) {
     Write-Host "[epoch] Stopping Epoch stack..." -ForegroundColor Yellow
     docker compose -f $COMPOSE_FILE down
-    # Also stop any locally-running bridge process
-    Get-Process -Name "node" -ErrorAction SilentlyContinue |
-        Where-Object { $_.MainWindowTitle -eq '' } |
-        ForEach-Object {
-            $cmdline = (Get-CimInstance Win32_Process -Filter "ProcessId=$($_.Id)").CommandLine
-            if ($cmdline -match 'dist.bridge.server') {
-                Write-Host "[epoch] Stopping local bridge (PID $($_.Id))..." -ForegroundColor Yellow
-                Stop-Process -Id $_.Id -Force
-            }
-        }
-    Write-Host "[epoch] Done." -ForegroundColor Green
+    Write-Host "[epoch] Done. Stop the bridge with Ctrl+C in Terminal 1." -ForegroundColor Green
     exit 0
 }
 
@@ -58,6 +50,14 @@ if (-not (Test-Path "$Workspace\manifest.json")) {
 
 $env:WORKSPACE_DIR = $Workspace
 Write-Host "[epoch] Workspace: $env:WORKSPACE_DIR" -ForegroundColor Cyan
+
+# Warn if bridge isn't reachable yet
+try {
+    Invoke-WebRequest -Uri "http://localhost:3002/health" -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop | Out-Null
+    Write-Host "[epoch] Bridge reachable on port 3002." -ForegroundColor Green
+} catch {
+    Write-Warning "[epoch] Bridge not reachable on port 3002. Start it first: .\start-bridge.ps1"
+}
 
 # Warn if a cloud provider's API key is missing
 $provider = if ($env:VISION_PROVIDER) { $env:VISION_PROVIDER } else { 'ollama' }
@@ -89,45 +89,6 @@ if (-not $dockerReady) {
         exit 1
     }
     Write-Host "[epoch] Docker ready." -ForegroundColor Green
-}
-
-# Start the bridge locally on the host (Docker containers have no outbound internet
-# access due to Windows Firewall; the bridge needs to reach cloud vision APIs).
-Write-Host "[epoch] Starting bridge on host (port 3002)..." -ForegroundColor Cyan
-$bridgeScript = "$PSScriptRoot\dist\bridge\server.js"
-if (-not (Test-Path $bridgeScript)) {
-    Write-Warning "[epoch] Bridge not compiled. Run 'npm run build:lib' in the Epoch directory first."
-} else {
-    # Kill any existing bridge process on port 3002
-    Get-NetTCPConnection -LocalPort 3002 -State Listen -ErrorAction SilentlyContinue |
-        ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }
-    $bridgeEnv = @{
-        WORKSPACE_DIR      = $Workspace
-        HOST_WORKSPACE_DIR = $Workspace
-        VISION_PROVIDER    = $env:VISION_PROVIDER
-        VISION_MODEL       = $env:VISION_MODEL
-        ANTHROPIC_API_KEY  = $env:ANTHROPIC_API_KEY
-        OPENAI_API_KEY     = $env:OPENAI_API_KEY
-        GEMINI_API_KEY     = $env:GEMINI_API_KEY
-        OLLAMA_BASE_URL    = 'http://localhost:11434'
-    }
-    $bridgeEnvStr = ($bridgeEnv.GetEnumerator() | ForEach-Object { "$($_.Key)=$($_.Value)" }) -join '; '
-    Start-Process -NoNewWindow -FilePath "node" -ArgumentList $bridgeScript `
-        -WorkingDirectory $PSScriptRoot `
-        -PassThru | Out-Null
-    # Set env vars the simple way for the child process
-    foreach ($kv in $bridgeEnv.GetEnumerator()) {
-        [System.Environment]::SetEnvironmentVariable($kv.Key, $kv.Value, 'Process')
-    }
-    # Wait briefly for bridge to bind
-    Start-Sleep -Seconds 2
-    $bridgeOk = $null
-    try { $bridgeOk = Invoke-WebRequest -Uri "http://localhost:3002/health" -UseBasicParsing -TimeoutSec 3 -ErrorAction Stop } catch {}
-    if ($bridgeOk) {
-        Write-Host "[epoch] Bridge ready." -ForegroundColor Green
-    } else {
-        Write-Warning "[epoch] Bridge may not have started correctly. Check manually."
-    }
 }
 
 # Remove any existing epoch containers not managed by this compose project
@@ -168,18 +129,18 @@ do {
 if ($ollamaReady) {
     $hasModel = $tags | Select-String $OLLAMA_MODEL
     if (-not $hasModel) {
-        Write-Host "[epoch] Pulling $OLLAMA_MODEL (first run only, ~4.5 GB - this will take a while on CPU)..." -ForegroundColor Yellow
+        Write-Host "[epoch] Pulling $OLLAMA_MODEL (first run only, ~4.5 GB)..." -ForegroundColor Yellow
         docker exec epoch-ollama ollama pull $OLLAMA_MODEL
         if ($LASTEXITCODE -eq 0) {
             Write-Host "[epoch] $OLLAMA_MODEL ready." -ForegroundColor Green
         } else {
-            Write-Warning "[epoch] Failed to pull $OLLAMA_MODEL. Vision conversion will fail until the model is available."
+            Write-Warning "[epoch] Failed to pull $OLLAMA_MODEL."
         }
     } else {
         Write-Host "[epoch] $OLLAMA_MODEL already present." -ForegroundColor Green
     }
 } else {
-    Write-Warning "[epoch] Ollama did not become ready in time. Run manually: docker exec epoch-ollama ollama pull $OLLAMA_MODEL"
+    Write-Warning "[epoch] Ollama did not become ready in time. Run: docker exec epoch-ollama ollama pull $OLLAMA_MODEL"
 }
 
 # Summary
@@ -187,11 +148,11 @@ Write-Host ""
 Write-Host "[epoch] Stack is up:" -ForegroundColor Green
 docker ps --filter "name=epoch-" --format "  {{.Names}}`t{{.Status}}"
 Write-Host ""
-Write-Host "  Gitea      -> http://localhost:3000  (william / epoch-local)" -ForegroundColor Cyan
+Write-Host "  Bridge     -> http://localhost:3002/health  (Terminal 1 / host process)" -ForegroundColor Cyan
+Write-Host "  Gitea      -> http://localhost:3000" -ForegroundColor Cyan
 Write-Host "  Excalidraw -> http://localhost:3001" -ForegroundColor Cyan
-Write-Host "  Bridge     -> http://localhost:3002/health  (host process)" -ForegroundColor Cyan
 Write-Host "  epoch-web  -> http://localhost:3003" -ForegroundColor Cyan
-Write-Host "  Ollama     -> http://localhost:11434/api/tags" -ForegroundColor Cyan
+Write-Host "  Ollama     -> http://localhost:11434" -ForegroundColor Cyan
 Write-Host ""
 if ($provider -eq 'ollama') {
     Write-Host "  Vision: $OLLAMA_MODEL (CPU, free - expect 30-90s per image)" -ForegroundColor DarkYellow
@@ -199,5 +160,5 @@ if ($provider -eq 'ollama') {
     Write-Host "  Vision: $provider (cloud)" -ForegroundColor DarkYellow
 }
 Write-Host ""
-Write-Host "To stop:   .\start-epoch.ps1 -Down" -ForegroundColor DarkGray
+Write-Host "To stop:    .\start-epoch.ps1 -Down  (then Ctrl+C in Terminal 1)" -ForegroundColor DarkGray
 Write-Host "To rebuild: .\start-epoch.ps1 -Build" -ForegroundColor DarkGray
