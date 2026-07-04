@@ -33,6 +33,16 @@ if (Test-Path $envFile) {
 if ($Down) {
     Write-Host "[epoch] Stopping Epoch stack..." -ForegroundColor Yellow
     docker compose -f $COMPOSE_FILE down
+    # Also stop any locally-running bridge process
+    Get-Process -Name "node" -ErrorAction SilentlyContinue |
+        Where-Object { $_.MainWindowTitle -eq '' } |
+        ForEach-Object {
+            $cmdline = (Get-CimInstance Win32_Process -Filter "ProcessId=$($_.Id)").CommandLine
+            if ($cmdline -match 'dist.bridge.server') {
+                Write-Host "[epoch] Stopping local bridge (PID $($_.Id))..." -ForegroundColor Yellow
+                Stop-Process -Id $_.Id -Force
+            }
+        }
     Write-Host "[epoch] Done." -ForegroundColor Green
     exit 0
 }
@@ -81,8 +91,47 @@ if (-not $dockerReady) {
     Write-Host "[epoch] Docker ready." -ForegroundColor Green
 }
 
+# Start the bridge locally on the host (Docker containers have no outbound internet
+# access due to Windows Firewall; the bridge needs to reach cloud vision APIs).
+Write-Host "[epoch] Starting bridge on host (port 3002)..." -ForegroundColor Cyan
+$bridgeScript = "$PSScriptRoot\dist\bridge\server.js"
+if (-not (Test-Path $bridgeScript)) {
+    Write-Warning "[epoch] Bridge not compiled. Run 'npm run build:lib' in the Epoch directory first."
+} else {
+    # Kill any existing bridge process on port 3002
+    Get-NetTCPConnection -LocalPort 3002 -State Listen -ErrorAction SilentlyContinue |
+        ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }
+    $bridgeEnv = @{
+        WORKSPACE_DIR      = $Workspace
+        HOST_WORKSPACE_DIR = $Workspace
+        VISION_PROVIDER    = $env:VISION_PROVIDER
+        VISION_MODEL       = $env:VISION_MODEL
+        ANTHROPIC_API_KEY  = $env:ANTHROPIC_API_KEY
+        OPENAI_API_KEY     = $env:OPENAI_API_KEY
+        GEMINI_API_KEY     = $env:GEMINI_API_KEY
+        OLLAMA_BASE_URL    = 'http://localhost:11434'
+    }
+    $bridgeEnvStr = ($bridgeEnv.GetEnumerator() | ForEach-Object { "$($_.Key)=$($_.Value)" }) -join '; '
+    Start-Process -NoNewWindow -FilePath "node" -ArgumentList $bridgeScript `
+        -WorkingDirectory $PSScriptRoot `
+        -PassThru | Out-Null
+    # Set env vars the simple way for the child process
+    foreach ($kv in $bridgeEnv.GetEnumerator()) {
+        [System.Environment]::SetEnvironmentVariable($kv.Key, $kv.Value, 'Process')
+    }
+    # Wait briefly for bridge to bind
+    Start-Sleep -Seconds 2
+    $bridgeOk = $null
+    try { $bridgeOk = Invoke-WebRequest -Uri "http://localhost:3002/health" -UseBasicParsing -TimeoutSec 3 -ErrorAction Stop } catch {}
+    if ($bridgeOk) {
+        Write-Host "[epoch] Bridge ready." -ForegroundColor Green
+    } else {
+        Write-Warning "[epoch] Bridge may not have started correctly. Check manually."
+    }
+}
+
 # Remove any existing epoch containers not managed by this compose project
-$managed = @('epoch-gitea', 'epoch-excalidraw', 'epoch-bridge', 'epoch-ollama')
+$managed = @('epoch-gitea', 'epoch-excalidraw', 'epoch-ollama', 'epoch-web')
 foreach ($name in $managed) {
     $existing = docker ps -aq --filter "name=^/${name}$" 2>$null
     if ($existing) {
@@ -140,7 +189,8 @@ docker ps --filter "name=epoch-" --format "  {{.Names}}`t{{.Status}}"
 Write-Host ""
 Write-Host "  Gitea      -> http://localhost:3000  (william / epoch-local)" -ForegroundColor Cyan
 Write-Host "  Excalidraw -> http://localhost:3001" -ForegroundColor Cyan
-Write-Host "  Bridge     -> http://localhost:3002/health" -ForegroundColor Cyan
+Write-Host "  Bridge     -> http://localhost:3002/health  (host process)" -ForegroundColor Cyan
+Write-Host "  epoch-web  -> http://localhost:3003" -ForegroundColor Cyan
 Write-Host "  Ollama     -> http://localhost:11434/api/tags" -ForegroundColor Cyan
 Write-Host ""
 if ($provider -eq 'ollama') {

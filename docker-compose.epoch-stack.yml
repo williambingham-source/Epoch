@@ -67,37 +67,28 @@ services:
       retries: 12
       start_period: 30s
 
-  epoch-bridge:
-    image: epoch-bridge:latest
-    container_name: epoch-bridge
+  # epoch-bridge runs on the HOST (not in Docker) so it can reach cloud vision APIs.
+  # Start it via start-epoch.ps1 which sets env vars and launches dist/bridge/server.js.
+
+  epoch-web:
+    image: epoch-web:latest
+    container_name: epoch-web
     build:
-      context: .
-      dockerfile: bridge/Dockerfile
+      context: ./epoch-web
     ports:
-      - "3002:3002"
+      - "3003:3003"
     environment:
-      - WORKSPACE_DIR=/workspace
-      - HOST_WORKSPACE_DIR=${WORKSPACE_DIR}
-      - VISION_PROVIDER=${VISION_PROVIDER:-ollama}
-      - VISION_MODEL=${VISION_MODEL:-}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
-      - OLLAMA_BASE_URL=http://epoch-ollama:11434
-    volumes:
-      - ${WORKSPACE_DIR}:/workspace
-      - /var/run/docker.sock:/var/run/docker.sock
+      # host.docker.internal reaches the locally-running bridge (Docker containers
+      # have no outbound internet, so the bridge runs on the host instead).
+      - BRIDGE_URL=http://host.docker.internal:3002
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3002/health"]
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:3003"]
       interval: 15s
       timeout: 5s
       retries: 5
-    depends_on:
-      gitea:
-        condition: service_healthy
-      ollama:
-        condition: service_started
 
 volumes:
   ollama-models:
