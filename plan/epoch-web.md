@@ -2,7 +2,35 @@
 
 A standalone web application replacing the VS Code extension dependency, with Monaco-based file management and multi-user workspace access via the existing bridge architecture.
 
-**Draft** · 2026-07-03 · 5 phases · ~12 months estimated
+**Updated** · 2026-07-04 · 5 phases · ~12 months estimated
+
+---
+
+## Implementation Status
+
+### Phase 1 — Web Shell ✅ (complete)
+
+Built and deployed as `epoch-web:latest` Docker image on port 3003. Bridge runs as a host process on port 3002; containers reach it via `host.docker.internal`.
+
+**Startup**: two-terminal workflow — `.\start-bridge.ps1` (Terminal 1) then `.\start-epoch.ps1` (Terminal 2).
+
+**Completed deliverables:**
+
+- ✅ Next.js 15 App Router · `output: standalone` · Docker service on port 3003
+- ✅ Catch-all API proxy (`app/api/[...path]/route.ts`) — reads `BRIDGE_URL` at runtime so env works inside Docker
+- ✅ Sidebar — node tree with expand/collapse hierarchy, click to select, + buttons to create children, inline search/filter
+- ✅ Monaco editor for `content.tex` — LaTeX syntax highlighting, auto-save (1.5 s debounce), Ctrl+S manual save, save-status indicator
+- ✅ Compile → PDF — POST `/api/compile` → blob URL → iframe viewer
+- ✅ Excalidraw canvas tab — iframe embed pointing at port 3001
+- ✅ **File manager** (Files tab) — raw workspace filesystem tree with lazy-load per directory; hover actions: rename inline, delete with confirm, new file, new folder, upload; text and image preview pane; bridge endpoints `GET/POST/DELETE /api/files/*` with path-traversal and `.git` guards
+- ✅ Node metadata header (NodeHeader) — click-to-edit title, status dropdown (Sketch / Conjecture / Hypothesis / Theorem with colour coding), description textarea (auto-save 1.5 s), tag chips with add/remove, delete-with-confirm
+- ✅ Sidebar inline rename — double-click title to rename folder slug + update `node.json` title via move + PUT
+- ✅ Delete node — DELETE `/api/nodes/:path` with git unstage + `rm -rf` + commit
+- ✅ Bridge: `removeNode` and `moveNode` added to `workspace.ts`; DELETE and move routes added to `nodes.ts`
+
+**Not yet built from original Phase 1 scope:**
+- ❌ Git log view (read-only commit history panel)
+- ❌ validationPath / DAG dependency UI
 
 ---
 
@@ -50,24 +78,26 @@ When epoch-web absorbs the bridge REST API in Phase 2–3, the bridge process co
 ---
 
 ## Phase 1 — Web Shell
-*~8 weeks · single user, single workspace*
+*~8 weeks · single user, single workspace · **✅ shipped***
 
 Replace the VS Code webview with a self-hosted web app. Everything the extension does today — file tree, editor, compile, canvas — accessible from any browser.
 
 ### Stack
 
-- **Next.js 15 App Router** — API routes + React in one deployable service. API routes import `workspace.ts` and `latex-compiler.ts` directly, no HTTP hop between web server and workspace logic.
+- **Next.js 15 App Router** — standalone output, proxies REST calls to the bridge at runtime via catch-all route handler (not build-time rewrites)
 - **Monaco** via `@monaco-editor/react` for `.tex` editing with LaTeX syntax highlighting
-- New Docker service `epoch-web` on **port 3003**
+- Bridge remains on port 3002 (host process); `epoch-web` on port 3003 (Docker)
 
 ### Deliverables
 
-- Node file tree sidebar — list, create, navigate nodes
-- Monaco editor for `content.tex`
-- Compile button → in-browser PDF viewer panel
-- Excalidraw canvas embedded as an iframe tab
-- Node metadata panel (status, validationPath)
-- Git log view (read-only)
+- ✅ Node file tree sidebar — list, create, navigate, search/filter, inline rename
+- ✅ Monaco editor for `content.tex` — auto-save + manual save
+- ✅ Compile button → in-browser PDF viewer panel
+- ✅ Excalidraw canvas embedded as an iframe tab
+- ✅ Node metadata panel — title, status, description, tags, delete
+- ✅ File manager — raw workspace filesystem tree, upload, create, delete, rename, preview
+- ❌ Git log view (read-only) — deferred to next iteration
+- ❌ validationPath / DAG dependency UI — deferred to next iteration
 
 ### Not in Phase 1
 
@@ -75,7 +105,7 @@ Authentication, multiple workspaces, real-time collaboration, Gitea integration.
 
 ### Key Decision — Next.js over plain Vite + Express
 
-Next.js API routes can import `workspace.ts` and `latex-compiler.ts` directly. The bridge stays on port 3002 for MCP/Excalidraw. Its REST routes are gradually absorbed into Next.js in Phase 2, leaving the bridge to serve only the MCP SSE endpoint.
+Next.js API routes proxy to the bridge rather than importing `workspace.ts` directly. The bridge stays on port 3002 for MCP/Excalidraw. Its REST routes are gradually absorbed into Next.js in Phase 2, leaving the bridge to serve only the MCP SSE endpoint.
 
 ---
 
