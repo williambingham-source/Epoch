@@ -6,18 +6,21 @@ import Sidebar from '@/components/Sidebar';
 import NodeHeader from '@/components/NodeHeader';
 import PdfPanel from '@/components/PdfPanel';
 import CanvasPanel from '@/components/CanvasPanel';
+import FileManager from '@/components/FileManager';
 import { listNodes, getNode, getManifest, updateNode, createNode } from '@/lib/api';
 import type { NodeSummary } from '@/lib/api';
 
 const Editor = dynamic(() => import('@/components/Editor'), { ssr: false });
 
-type Tab = 'editor' | 'pdf' | 'canvas';
+type Tab = 'editor' | 'pdf' | 'canvas' | 'files';
 
 export default function WorkspacePage() {
   const [nodes, setNodes] = useState<NodeSummary[]>([]);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [nodeTitle, setNodeTitle] = useState('');
   const [nodeStatus, setNodeStatus] = useState('Sketch');
+  const [nodeDescription, setNodeDescription] = useState('');
+  const [nodeTags, setNodeTags] = useState<string[]>([]);
   const [latex, setLatex] = useState('');
   const [tab, setTab] = useState<Tab>('editor');
   const [workspaceName, setWorkspaceName] = useState('Epoch');
@@ -49,6 +52,8 @@ export default function WorkspacePage() {
       setLatex(detail.latex ?? '');
       setNodeTitle(detail.node.title ?? path);
       setNodeStatus(detail.node.status ?? 'Sketch');
+      setNodeDescription(detail.node.description ?? '');
+      setNodeTags(detail.node.tags ?? []);
     } catch {
       setLatex('% Failed to load node content');
     }
@@ -58,7 +63,7 @@ export default function WorkspacePage() {
     if (!selectedPath) return;
     setSaveStatus('saving');
     try {
-      await updateNode(selectedPath, value);
+      await updateNode(selectedPath, { latex: value });
       setSaveStatus('saved');
     } catch {
       setSaveStatus('error');
@@ -85,6 +90,8 @@ export default function WorkspacePage() {
     setSelectedPath(null);
     setNodeTitle('');
     setNodeStatus('Sketch');
+    setNodeDescription('');
+    setNodeTags([]);
     setLatex('');
     await loadNodes();
   }
@@ -102,6 +109,7 @@ export default function WorkspacePage() {
     { id: 'editor', label: 'LaTeX' },
     { id: 'pdf', label: 'PDF' },
     { id: 'canvas', label: 'Canvas' },
+    { id: 'files', label: 'Files' },
   ];
 
   const statusLabel = { saved: 'Saved', saving: 'Saving…', unsaved: 'Unsaved', error: 'Error saving' }[saveStatus];
@@ -141,8 +149,12 @@ export default function WorkspacePage() {
             path={selectedPath}
             title={nodeTitle}
             status={nodeStatus}
+            description={nodeDescription}
+            tags={nodeTags}
             onTitleChange={handleTitleChange}
             onStatusChange={handleStatusChange}
+            onDescriptionChange={setNodeDescription}
+            onTagsChange={setNodeTags}
             onDeleted={handleDeleted}
           />
         )}
@@ -168,6 +180,9 @@ export default function WorkspacePage() {
           )}
           {tab === 'canvas' && (
             <CanvasPanel />
+          )}
+          {tab === 'files' && (
+            <FileManager />
           )}
         </div>
       </main>

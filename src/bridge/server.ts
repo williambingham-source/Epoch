@@ -12,6 +12,7 @@ import cors from 'cors';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 
 import { nodesRouter } from './routes/nodes.js';
+import { filesRouter } from './routes/files.js';
 import { compileRouter } from './routes/compile.js';
 import { compilePngRouter } from './routes/compilePng.js';
 import { convertRouter } from './routes/convert.js';
@@ -47,6 +48,7 @@ if (process.argv.includes('--mcp-stdio')) {
 
   // REST routes
   app.use('/api/nodes', nodesRouter(WORKSPACE_DIR));
+  app.use('/api/files', filesRouter(WORKSPACE_DIR));
   app.use('/api/compile', compileRouter(WORKSPACE_DIR));
   app.use('/api/compile-png', compilePngRouter(WORKSPACE_DIR));
   app.use('/api/convert', convertRouter(WORKSPACE_DIR));

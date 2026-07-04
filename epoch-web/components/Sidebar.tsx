@@ -151,12 +151,20 @@ export default function Sidebar({ nodes, selectedPath, onSelect, onCreate, onRen
   const [creatingUnder, setCreatingUnder] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState('');
   const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState('');
 
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
   const [renameTitle, setRenameTitle] = useState('');
   const renameLock = useRef(false);
 
-  const { map, roots } = buildTree(nodes);
+  const filteredNodes = search.trim()
+    ? nodes.filter((n) => {
+        const q = search.toLowerCase();
+        return n.title.toLowerCase().includes(q) || n.path.toLowerCase().includes(q);
+      })
+    : nodes;
+
+  const { map, roots } = buildTree(filteredNodes);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -206,7 +214,7 @@ export default function Sidebar({ nodes, selectedPath, onSelect, onCreate, onRen
       if (newPath !== renamingPath) {
         await moveNode(renamingPath, newPath);
       }
-      await updateNode(newPath, undefined, trimmed);
+      await updateNode(newPath, { title: trimmed });
       await onRename?.(renamingPath, newPath);
     } catch {
       // silent — node list refresh will restore state
@@ -227,6 +235,19 @@ export default function Sidebar({ nodes, selectedPath, onSelect, onCreate, onRen
       <div className="sidebar-header">
         <span className="workspace-name">{workspaceName}</span>
         <button className="add-root-btn" onClick={() => setCreatingUnder('')} title="New root node">+</button>
+      </div>
+
+      <div className="sidebar-search">
+        <input
+          className="search-input"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Filter nodes…"
+          onKeyDown={(e) => e.key === 'Escape' && setSearch('')}
+        />
+        {search && (
+          <button className="search-clear" onClick={() => setSearch('')} aria-label="Clear search">×</button>
+        )}
       </div>
 
       <div className="sidebar-tree">
@@ -314,6 +335,36 @@ export default function Sidebar({ nodes, selectedPath, onSelect, onCreate, onRen
           border-radius: 4px;
         }
         .add-root-btn:hover { background: var(--accent); }
+        .sidebar-search {
+          position: relative;
+          padding: 6px 8px;
+          border-bottom: 1px solid var(--border);
+          flex-shrink: 0;
+        }
+        .search-input {
+          width: 100%;
+          background: var(--surface2);
+          border: 1px solid var(--border);
+          border-radius: 4px;
+          color: var(--text);
+          font-size: 12px;
+          padding: 4px 24px 4px 8px;
+          box-sizing: border-box;
+        }
+        .search-input:focus { outline: none; border-color: var(--accent); }
+        .search-input::placeholder { color: var(--text-muted); opacity: 0.5; }
+        .search-clear {
+          position: absolute;
+          right: 14px;
+          top: 50%;
+          transform: translateY(-50%);
+          background: transparent;
+          color: var(--text-muted);
+          font-size: 14px;
+          padding: 0 4px;
+          line-height: 1;
+        }
+        .search-clear:hover { color: var(--text); }
         .sidebar-tree {
           flex: 1;
           overflow-y: auto;
