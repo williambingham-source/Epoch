@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import { moveNode, updateNode } from '@/lib/api';
 import type { NodeSummary } from '@/lib/api';
 
 interface Props {
@@ -8,15 +9,20 @@ interface Props {
   selectedPath: string | null;
   onSelect: (path: string) => void;
   onCreate: (parentPath: string, title: string) => Promise<void>;
+  onRename?: (fromPath: string, toPath: string) => Promise<void>;
   workspaceName: string;
+}
+
+function slugify(title: string): string {
+  return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'node';
 }
 
 function statusColor(status: string): string {
   switch (status) {
-    case 'verified': return '#5dbf8a';
-    case 'in_progress': return '#7c8fd6';
-    case 'disputed': return '#e06c75';
-    default: return '#8a87a8';
+    case 'Theorem':    return '#5dbf8a';
+    case 'Hypothesis': return '#7c8fd6';
+    case 'Conjecture': return '#f9a95a';
+    default:           return '#8a87a8';
   }
 }
 
@@ -46,42 +52,79 @@ function TreeNode({
   map,
   depth,
   selectedPath,
+  renamingPath,
+  renameTitle,
   onSelect,
   onCreateChild,
+  onStartRename,
+  onSetRenameTitle,
+  onCommitRename,
+  onCancelRename,
 }: {
   path: string;
   map: Map<string, NodeSummary & { children: string[] }>;
   depth: number;
   selectedPath: string | null;
+  renamingPath: string | null;
+  renameTitle: string;
   onSelect: (p: string) => void;
   onCreateChild: (parentPath: string) => void;
+  onStartRename: (p: string, currentTitle: string) => void;
+  onSetRenameTitle: (t: string) => void;
+  onCommitRename: () => void;
+  onCancelRename: () => void;
 }) {
   const node = map.get(path);
   if (!node) return null;
 
   const isSelected = path === selectedPath;
-  const title = node.path.split('/').pop() ?? node.title;
+  const isRenaming = path === renamingPath;
 
   return (
     <div>
       <div
         className={`sidebar-node${isSelected ? ' selected' : ''}`}
         style={{ paddingLeft: 12 + depth * 16 }}
-        onClick={() => onSelect(path)}
+        onClick={() => !isRenaming && onSelect(path)}
       >
         <span
           className="status-dot"
           style={{ background: statusColor(node.status) }}
           title={node.status}
         />
-        <span className="node-title">{node.title || title}</span>
-        <button
-          className="add-child-btn"
-          title="Add child node"
-          onClick={(e) => { e.stopPropagation(); onCreateChild(path); }}
-        >
-          +
-        </button>
+
+        {isRenaming ? (
+          <input
+            autoFocus
+            className="rename-input"
+            value={renameTitle}
+            onChange={(e) => onSetRenameTitle(e.target.value)}
+            onBlur={onCommitRename}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') { e.preventDefault(); onCommitRename(); }
+              if (e.key === 'Escape') { e.preventDefault(); onCancelRename(); }
+            }}
+            onClick={(e) => e.stopPropagation()}
+          />
+        ) : (
+          <span
+            className="node-title"
+            onDoubleClick={(e) => { e.stopPropagation(); onStartRename(path, node.title || path.split('/').pop() || ''); }}
+            title="Double-click to rename"
+          >
+            {node.title || path.split('/').pop()}
+          </span>
+        )}
+
+        {!isRenaming && (
+          <button
+            className="add-child-btn"
+            title="Add child node"
+            onClick={(e) => { e.stopPropagation(); onCreateChild(path); }}
+          >
+            +
+          </button>
+        )}
       </div>
       {node.children.map((childPath) => (
         <TreeNode
@@ -90,18 +133,28 @@ function TreeNode({
           map={map}
           depth={depth + 1}
           selectedPath={selectedPath}
+          renamingPath={renamingPath}
+          renameTitle={renameTitle}
           onSelect={onSelect}
           onCreateChild={onCreateChild}
+          onStartRename={onStartRename}
+          onSetRenameTitle={onSetRenameTitle}
+          onCommitRename={onCommitRename}
+          onCancelRename={onCancelRename}
         />
       ))}
     </div>
   );
 }
 
-export default function Sidebar({ nodes, selectedPath, onSelect, onCreate, workspaceName }: Props) {
+export default function Sidebar({ nodes, selectedPath, onSelect, onCreate, onRename, workspaceName }: Props) {
   const [creatingUnder, setCreatingUnder] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const [renamingPath, setRenamingPath] = useState<string | null>(null);
+  const [renameTitle, setRenameTitle] = useState('');
+  const renameLock = useRef(false);
 
   const { map, roots } = buildTree(nodes);
 
@@ -116,6 +169,57 @@ export default function Sidebar({ nodes, selectedPath, onSelect, onCreate, works
     } finally {
       setSaving(false);
     }
+  }
+
+  function startRename(path: string, currentTitle: string) {
+    setRenamingPath(path);
+    setRenameTitle(currentTitle);
+    renameLock.current = false;
+  }
+
+  async function commitRename() {
+    if (renameLock.current) return;
+    renameLock.current = true;
+
+    if (!renamingPath || !renameTitle.trim()) {
+      setRenamingPath(null);
+      return;
+    }
+
+    const originalNode = map.get(renamingPath);
+    const originalTitle = originalNode?.title ?? '';
+    const trimmed = renameTitle.trim();
+    const parentPrefix = renamingPath.includes('/')
+      ? renamingPath.slice(0, renamingPath.lastIndexOf('/'))
+      : '';
+    const newSlug = slugify(trimmed);
+    const newPath = parentPrefix ? `${parentPrefix}/${newSlug}` : newSlug;
+
+    // Nothing changed
+    if (newPath === renamingPath && trimmed === originalTitle) {
+      setRenamingPath(null);
+      return;
+    }
+
+    setSaving(true);
+    try {
+      if (newPath !== renamingPath) {
+        await moveNode(renamingPath, newPath);
+      }
+      await updateNode(newPath, undefined, trimmed);
+      await onRename?.(renamingPath, newPath);
+    } catch {
+      // silent — node list refresh will restore state
+    } finally {
+      setSaving(false);
+      setRenamingPath(null);
+    }
+  }
+
+  function cancelRename() {
+    setRenamingPath(null);
+    setRenameTitle('');
+    renameLock.current = false;
   }
 
   return (
@@ -133,8 +237,14 @@ export default function Sidebar({ nodes, selectedPath, onSelect, onCreate, works
             map={map}
             depth={0}
             selectedPath={selectedPath}
+            renamingPath={renamingPath}
+            renameTitle={renameTitle}
             onSelect={onSelect}
             onCreateChild={setCreatingUnder}
+            onStartRename={startRename}
+            onSetRenameTitle={setRenameTitle}
+            onCommitRename={commitRename}
+            onCancelRename={cancelRename}
           />
         ))}
         {nodes.length === 0 && (
@@ -240,6 +350,16 @@ export default function Sidebar({ nodes, selectedPath, onSelect, onCreate, works
           text-overflow: ellipsis;
           white-space: nowrap;
           font-size: 13px;
+        }
+        .rename-input {
+          flex: 1;
+          font-size: 13px;
+          background: var(--surface2);
+          border: 1px solid var(--accent);
+          border-radius: 3px;
+          color: var(--text);
+          padding: 1px 5px;
+          min-width: 0;
         }
         .add-child-btn {
           opacity: 0;

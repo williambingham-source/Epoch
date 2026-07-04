@@ -6,6 +6,8 @@ import {
   readNode,
   writeNode,
   addNode,
+  removeNode,
+  moveNode,
   readManifest,
   type AddNodeOptions,
   type WriteNodeOptions,
@@ -138,6 +140,33 @@ export function nodesRouter(workspaceDir: string): Router {
       } satisfies WriteNodeOptions);
 
       res.json({ path: nodePath, ok: true });
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // DELETE /api/nodes/:encodedPath
+  router.delete('/:encodedPath', async (req, res) => {
+    try {
+      const nodePath = decodeURIComponent(req.params['encodedPath'] ?? '');
+      await removeNode({ workspaceDir, nodePath });
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // POST /api/nodes/:encodedPath/move — rename / reparent a node
+  router.post('/:encodedPath/move', async (req, res) => {
+    try {
+      const fromPath = decodeURIComponent(req.params['encodedPath'] ?? '');
+      const { toPath } = req.body as { toPath: string };
+      if (!toPath) {
+        res.status(400).json({ error: 'toPath is required' });
+        return;
+      }
+      await moveNode({ workspaceDir, fromPath, toPath });
+      res.json({ ok: true, path: toPath });
     } catch (err) {
       res.status(500).json({ error: String(err) });
     }

@@ -46,11 +46,20 @@ export async function getNode(path: string): Promise<NodeDetail> {
   return (await apiFetch(`/api/nodes/${encodeURIComponent(path)}`)).json();
 }
 
-export async function updateNode(path: string, latex: string): Promise<void> {
+export async function updateNode(
+  path: string,
+  latex?: string,
+  title?: string,
+  status?: string,
+): Promise<void> {
+  const body: Record<string, string> = { commitMessage: 'update via epoch-web' };
+  if (latex !== undefined) body.latex = latex;
+  if (title !== undefined) body.title = title;
+  if (status !== undefined) body.status = status;
   await apiFetch(`/api/nodes/${encodeURIComponent(path)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ latex, commitMessage: 'update via epoch-web' }),
+    body: JSON.stringify(body),
   });
 }
 
@@ -60,6 +69,20 @@ export async function createNode(parentPath: string, title: string): Promise<{ p
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ parentPath, title }),
   })).json();
+}
+
+export async function deleteNode(path: string): Promise<void> {
+  await apiFetch(`/api/nodes/${encodeURIComponent(path)}`, { method: 'DELETE' });
+}
+
+export async function moveNode(fromPath: string, toPath: string): Promise<string> {
+  const res = await apiFetch(`/api/nodes/${encodeURIComponent(fromPath)}/move`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ toPath }),
+  });
+  const data = await res.json() as { path: string };
+  return data.path;
 }
 
 export async function compileLatex(latex: string): Promise<Blob> {

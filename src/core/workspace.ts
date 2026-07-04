@@ -291,6 +291,36 @@ export async function listNodes(workspaceDir: string): Promise<NodeEntry[]> {
 // Move
 // ---------------------------------------------------------------------------
 
+export interface RemoveNodeOptions {
+  workspaceDir: string;
+  /** Workspace-relative POSIX path of the node to delete. */
+  nodePath: string;
+  author?: GitAuthor;
+}
+
+export async function removeNode(opts: RemoveNodeOptions): Promise<void> {
+  const { workspaceDir, nodePath, author = DEFAULT_AUTHOR } = opts;
+  const absDir = path.join(workspaceDir, nodePath);
+
+  const files = await getAllFilePaths(absDir);
+  for (const file of files) {
+    await git.remove({
+      fs,
+      dir: workspaceDir,
+      filepath: path.relative(workspaceDir, file).replace(/\\/g, '/'),
+    });
+  }
+
+  await fs.promises.rm(absDir, { recursive: true, force: true });
+
+  await git.commit({
+    fs,
+    dir: workspaceDir,
+    message: `delete: ${nodePath}`,
+    author,
+  });
+}
+
 export interface MoveNodeOptions {
   workspaceDir: string;
   /** Workspace-relative POSIX path of the node to move. */

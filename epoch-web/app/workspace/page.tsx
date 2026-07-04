@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import Sidebar from '@/components/Sidebar';
+import NodeHeader from '@/components/NodeHeader';
 import PdfPanel from '@/components/PdfPanel';
 import CanvasPanel from '@/components/CanvasPanel';
 import { listNodes, getNode, getManifest, updateNode, createNode } from '@/lib/api';
@@ -15,6 +16,8 @@ type Tab = 'editor' | 'pdf' | 'canvas';
 export default function WorkspacePage() {
   const [nodes, setNodes] = useState<NodeSummary[]>([]);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const [nodeTitle, setNodeTitle] = useState('');
+  const [nodeStatus, setNodeStatus] = useState('Sketch');
   const [latex, setLatex] = useState('');
   const [tab, setTab] = useState<Tab>('editor');
   const [workspaceName, setWorkspaceName] = useState('Epoch');
@@ -44,6 +47,8 @@ export default function WorkspacePage() {
     try {
       const detail = await getNode(path);
       setLatex(detail.latex ?? '');
+      setNodeTitle(detail.node.title ?? path);
+      setNodeStatus(detail.node.status ?? 'Sketch');
     } catch {
       setLatex('% Failed to load node content');
     }
@@ -66,6 +71,33 @@ export default function WorkspacePage() {
     await selectNode(created.path);
   }
 
+  function handleTitleChange(newTitle: string) {
+    setNodeTitle(newTitle);
+    setNodes((prev) => prev.map((n) => n.path === selectedPath ? { ...n, title: newTitle } : n));
+  }
+
+  function handleStatusChange(newStatus: string) {
+    setNodeStatus(newStatus);
+    setNodes((prev) => prev.map((n) => n.path === selectedPath ? { ...n, status: newStatus } : n));
+  }
+
+  async function handleDeleted() {
+    setSelectedPath(null);
+    setNodeTitle('');
+    setNodeStatus('Sketch');
+    setLatex('');
+    await loadNodes();
+  }
+
+  async function handleRename(fromPath: string, toPath: string) {
+    if (selectedPath === fromPath) {
+      setSelectedPath(toPath);
+    } else if (selectedPath?.startsWith(fromPath + '/')) {
+      setSelectedPath(selectedPath.replace(fromPath, toPath));
+    }
+    await loadNodes();
+  }
+
   const tabs: { id: Tab; label: string }[] = [
     { id: 'editor', label: 'LaTeX' },
     { id: 'pdf', label: 'PDF' },
@@ -82,6 +114,7 @@ export default function WorkspacePage() {
         selectedPath={selectedPath}
         onSelect={selectNode}
         onCreate={handleCreate}
+        onRename={handleRename}
         workspaceName={workspaceName}
       />
 
@@ -102,6 +135,17 @@ export default function WorkspacePage() {
             {selectedPath ? statusLabel : ''}
           </div>
         </div>
+
+        {selectedPath && (
+          <NodeHeader
+            path={selectedPath}
+            title={nodeTitle}
+            status={nodeStatus}
+            onTitleChange={handleTitleChange}
+            onStatusChange={handleStatusChange}
+            onDeleted={handleDeleted}
+          />
+        )}
 
         <div className="panel">
           {loadError && (
