@@ -193,7 +193,7 @@ Next.js API routes proxy to the bridge rather than importing `workspace.ts` dire
 ---
 
 ## Phase 2 — Multi-workspace
-*~5 weeks · workspace picker, Gitea API · **🚧 in progress (2026-07-05)***
+*~5 weeks · workspace picker, Gitea API · **✅ complete (2026-07-05)***
 
 A home screen lists and creates workspaces backed by Gitea repos. The bridge becomes stateless — workspace path is passed per request rather than baked in at startup.
 
@@ -216,10 +216,9 @@ A home screen lists and creates workspaces backed by Gitea repos. The bridge bec
 - ✅ **`/ws/[name]`** — full workspace UI; `setApiBase('/ws/${name}/api')` on mount, cleanup on unmount
 - ✅ **`/ws/[name]/api/[...path]`** — API proxy that forwards `x-workspace: name` header to bridge
 
-### Remaining for full Phase 2
+### Completed (Phase 2 fully shipped 2026-07-05)
 
-- ✅ **URL-scoped node routing** — `?node=<encoded-path>` query param; `selectNode` calls `router.replace` to push the URL; on mount, auto-selects from `?node=` after nodes load; `handleDeleted` + `handleRename` keep the URL in sync; shareable, bookmarkable, browser back/forward navigable; shipped 2026-07-05
-- ❌ Bridge allowlist — currently any valid dir name under base dir is accepted; no explicit configured allowlist
+- ✅ **URL-scoped node routing** — `?node=<encoded-path>` query param; `selectNode` calls `router.replace` to push the URL; on mount, auto-selects from `?node=` after nodes load; `handleDeleted` + `handleRename` keep the URL in sync; shareable, bookmarkable, browser back/forward navigable
 
 ### Deliverables
 
@@ -259,6 +258,7 @@ Different people log in with their own Gitea credentials and see only their repo
 - Each user sees only repos owned by their Gitea account
 - Workspace paths resolved from Gitea clone URLs, not raw filesystem paths
 - Server clones repos to a per-user working directory on first access; periodic `git pull` keeps it fresh
+- **Bridge allowlist** — replace the current "any valid dir name under base dir" policy with an explicit per-user allowlist of resolved paths; path-traversal guard already in place, this adds a positive-check layer
 
 ### Vision API keys
 
