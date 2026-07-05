@@ -28,9 +28,9 @@ Built and deployed as `epoch-web:latest` Docker image on port 3003. Bridge runs 
 - ✅ Delete node — DELETE `/api/nodes/:path` with git unstage + `rm -rf` + commit
 - ✅ Bridge: `removeNode` and `moveNode` added to `workspace.ts`; DELETE and move routes added to `nodes.ts`
 
-**Not yet built from original Phase 1 scope:**
+**Original Phase 1 scope — now complete:**
 - ✅ Git log view (read-only commit history panel) — shipped 2026-07-05
-- ❌ validationPath / DAG dependency UI
+- ✅ validationPath / DAG dependency UI — shipped 2026-07-05
 
 ### Phase 1 UI — VS Code webview layout ✅ (complete, 2026-07-05)
 
@@ -110,6 +110,11 @@ Validation path editing, promotion warnings, DAG graph visualisation, and thumbn
 - Thumbnails are served via existing files proxy at `/api/nodes/:path/thumbnail`; SVG `<image>` elements with 404 URLs silently render nothing (no broken-image icon)
 - VS Code webview thumbnails deferred — would require base64 message-passing from extension host
 
+**Post-ship hot-fix (2026-07-05):**
+- ✅ Bridge `GET /api/nodes` now returns `tags ?? []` and `validationPath ?? []` — prevents Navigator crash for `node.json` files that predate these fields
+- ✅ epoch-web `NavigatorLayout`: `n.tags?.length ?? 0` guard in card grid; `DagCanvas`: `n.validationPath ?? []` in layout algorithm
+- ✅ VS Code webview `NavigatorLayout`: `selectedEntry.node.validationPath?.length ?? 0` guard in detail panel
+
 ---
 
 ## Cross-cutting — VS Code Extension Connectivity
@@ -175,7 +180,7 @@ Replace the VS Code webview with a self-hosted web app. Everything the extension
 - ✅ Node metadata panel — title, status, description, tags, delete
 - ✅ File manager — raw workspace filesystem tree, upload, create, delete, rename, preview
 - ✅ Git log view (read-only) — shipped 2026-07-05
-- ❌ validationPath / DAG dependency UI — deferred to next iteration
+- ✅ validationPath / DAG dependency UI — shipped 2026-07-05 (see Phase 1 Addition above)
 
 ### Not in Phase 1
 
