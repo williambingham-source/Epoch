@@ -35,7 +35,7 @@ export interface SharedLayoutProps {
   compileResult: CompileResult | null;
   pdfBase64: string | null;
   pdfFileName: string;
-  viewMode: 'edit' | 'pdf';
+  viewMode: 'edit' | 'pdf' | 'history';
 
   // === Content display flags ===
   showReview: boolean;

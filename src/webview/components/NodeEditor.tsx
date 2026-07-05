@@ -183,6 +183,19 @@ export function NodeEditor({
   const editingIdx = PROJECT_STATUSES.indexOf(node.status);
   const isUpgrade = editingIdx > savedIdx && node.status !== 'Sketch';
 
+  // Deps whose live status is below the current node's target status
+  const blockingDeps = isUpgrade
+    ? node.validationPath
+        .map((dep) => {
+          const entry = allNodes.find((n) => n.path === dep.nodePath);
+          const liveStatus = entry?.node.status ?? dep.status;
+          return PROJECT_STATUSES.indexOf(liveStatus) < editingIdx
+            ? { title: dep.title, path: dep.nodePath, liveStatus }
+            : null;
+        })
+        .filter((d): d is NonNullable<typeof d> => d !== null)
+    : [];
+
   const handleTags = (raw: string) => {
     const tags = raw
       .split(',')
@@ -281,6 +294,31 @@ export function NodeEditor({
           onChange={onChange}
         />
       </div>
+
+      {/* Promotion warning */}
+      {blockingDeps.length > 0 && (
+        <div className="blocking-deps-warning">
+          <span style={{ color: '#f9a95a' }}>⚠</span>
+          <span className="muted" style={{ fontSize: '0.85em' }}>
+            {blockingDeps.length} dep{blockingDeps.length > 1 ? 's' : ''} below <strong>{node.status}</strong>:
+          </span>
+          {blockingDeps.map((d) => (
+            <span
+              key={d.path}
+              className="muted"
+              style={{
+                fontSize: '0.8em',
+                background: 'var(--vscode-input-background, #313244)',
+                border: '1px solid rgba(249,169,90,0.3)',
+                borderRadius: 4,
+                padding: '0 5px',
+              }}
+            >
+              {d.title} ({d.liveStatus})
+            </span>
+          ))}
+        </div>
+      )}
 
       <div className="actions">
         <button className="btn" onClick={onSave} disabled={!isDirty}>

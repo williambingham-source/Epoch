@@ -1,4 +1,4 @@
-import type { NodeSummary } from '@/lib/api';
+import type { NodeSummary, ValidationPathEntry } from '@/lib/api';
 import type { SidebarMode } from '@/components/ActivityBar';
 
 export type LayoutMode = 'analytical' | 'focus' | 'navigator';
@@ -14,6 +14,7 @@ export interface LayoutProps {
   nodeStatus: string;
   nodeDescription: string;
   nodeTags: string[];
+  nodeValidationPath: ValidationPathEntry[];
   latex: string;
   saveStatus: 'saved' | 'saving' | 'unsaved' | 'error';
   loadError: string | null;
@@ -41,6 +42,7 @@ export interface LayoutProps {
   onStatusChange: (s: string) => void;
   onDescriptionChange: (d: string) => void;
   onTagsChange: (t: string[]) => void;
+  onValidationPathChange: (vp: ValidationPathEntry[]) => void;
   // layout handlers
   onSetLayout: (mode: LayoutMode) => void;
   onTogglePanel: () => void;

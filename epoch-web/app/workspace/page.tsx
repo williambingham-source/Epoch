@@ -5,7 +5,7 @@ import AnalyticalLayout from '@/layouts/AnalyticalLayout';
 import FocusLayout from '@/layouts/FocusLayout';
 import NavigatorLayout from '@/layouts/NavigatorLayout';
 import { listNodes, getNode, getManifest, updateNode, createNode, compileLatex } from '@/lib/api';
-import type { NodeSummary } from '@/lib/api';
+import type { NodeSummary, ValidationPathEntry } from '@/lib/api';
 import type { LayoutMode, ContentTab } from '@/layouts/types';
 import type { SidebarMode } from '@/components/ActivityBar';
 
@@ -21,6 +21,7 @@ export default function WorkspacePage() {
   const [nodeStatus, setNodeStatus] = useState('Sketch');
   const [nodeDescription, setNodeDescription] = useState('');
   const [nodeTags, setNodeTags] = useState<string[]>([]);
+  const [nodeValidationPath, setNodeValidationPath] = useState<ValidationPathEntry[]>([]);
   const [latex, setLatex] = useState('');
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved' | 'error'>('saved');
 
@@ -66,6 +67,7 @@ export default function WorkspacePage() {
       setNodeStatus(detail.node.status ?? 'Sketch');
       setNodeDescription(detail.node.description ?? '');
       setNodeTags(detail.node.tags ?? []);
+      setNodeValidationPath(detail.node.validationPath ?? []);
     } catch {
       setLatex('% Failed to load node content');
     }
@@ -122,6 +124,7 @@ export default function WorkspacePage() {
     setNodeStatus('Sketch');
     setNodeDescription('');
     setNodeTags([]);
+    setNodeValidationPath([]);
     setLatex('');
     setPdfUrl(null);
     pdfUrlRef.current = null;
@@ -145,6 +148,7 @@ export default function WorkspacePage() {
     nodeStatus,
     nodeDescription,
     nodeTags,
+    nodeValidationPath,
     latex,
     saveStatus,
     loadError,
@@ -167,6 +171,9 @@ export default function WorkspacePage() {
     onStatusChange: handleStatusChange,
     onDescriptionChange: setNodeDescription,
     onTagsChange: setNodeTags,
+    onValidationPathChange: (vp: ValidationPathEntry[]) => {
+      setNodeValidationPath(vp);
+    },
     onSetLayout: setLayoutMode,
     onTogglePanel: () => setPanelOpen((v) => !v),
     onSetSidebarMode: setSidebarMode,

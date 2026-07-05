@@ -118,7 +118,10 @@ Build the primary UI as a VS Code extension with a Webview panel.
   - **Compile panel** — compiles workspace to PDF via Docker/pdflatex, shows result
   - **PDF viewer** — renders compiled PDF in-webview via pdf.js (lazy-loaded)
   - **History tab** — git commit log for the workspace or selected node; same three-layout pattern as epoch-web (Editor / PDF / History tabs in ContentArea); message-passing via `getNodeHistory` → `nodeHistory`
-  - **Three layouts** — Analytical (3-column), Focus (full-width + bottom drawer), Navigator (card grid); all share `SharedLayoutProps`
+  - **Three layouts** — Analytical (3-column), Focus (full-width + bottom drawer), Navigator (card grid + DAG graph); all share `SharedLayoutProps`
+  - **Validation path editing** — NodeEditor add/remove dep picker; saved via `writeNode`; `getNodeHistory` uses native git binary (isomorphic-git dropped for this path — Windows path issues)
+  - **Promotion warning** — when upgrading node status, deps below the target status are listed in an amber advisory box
+  - **DAG graph in Navigator** — SVG layered graph; nodes ranked by longest dep chain (sources bottom, sinks top); bezier edges; status color stripe + thumbnail inset; Grid/Graph toggle in topbar
 - [x] `package.json` additions — `vscode` engine, `activationEvents`, `contributes`
 - [x] `vite.config.ts` — bundles the Webview app into `dist/webview/`
 - [x] Extension build pipeline (tsc for extension host, Vite for webview)

@@ -14,11 +14,12 @@ import {
   type WriteNodeOptions,
 } from '../../core/workspace.js';
 import { ProjectStatus } from '../../types/project.js';
+import type { NodeDependency } from '../../types/node.js';
 
 export function nodesRouter(workspaceDir: string): Router {
   const router = Router();
 
-  // GET /api/nodes — flat list of all nodes
+  // GET /api/nodes — flat list of all nodes with validation paths
   router.get('/', async (_req, res) => {
     try {
       const entries = await listNodes(workspaceDir);
@@ -28,6 +29,7 @@ export function nodesRouter(workspaceDir: string): Router {
           title: e.node.title,
           status: e.node.status,
           tags: e.node.tags,
+          validationPath: e.node.validationPath,
         })),
       );
     } catch (err) {
@@ -55,6 +57,20 @@ export function nodesRouter(workspaceDir: string): Router {
       res.json(entries);
     } catch (err) {
       res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // GET /api/nodes/:encodedPath/thumbnail — serve data/thumbnail.png if it exists
+  router.get('/:encodedPath/thumbnail', async (req, res) => {
+    try {
+      const nodePath = decodeURIComponent(req.params['encodedPath'] ?? '');
+      const thumbPath = path.join(workspaceDir, nodePath, 'data', 'thumbnail.png');
+      const buf = await fs.readFile(thumbPath);
+      res.setHeader('Content-Type', 'image/png');
+      res.setHeader('Cache-Control', 'public, max-age=60');
+      res.send(buf);
+    } catch {
+      res.status(404).json({ error: 'Thumbnail not found' });
     }
   });
 
@@ -126,12 +142,13 @@ export function nodesRouter(workspaceDir: string): Router {
     try {
       const nodePath = decodeURIComponent(req.params['encodedPath'] ?? '');
       const absNodePath = path.join(workspaceDir, nodePath);
-      const { latex, title, description, status, tags, commitMessage } = req.body as {
+      const { latex, title, description, status, tags, validationPath, commitMessage } = req.body as {
         latex?: string;
         title?: string;
         description?: string;
         status?: ProjectStatus;
         tags?: string[];
+        validationPath?: NodeDependency[];
         commitMessage?: string;
       };
 
@@ -141,6 +158,7 @@ export function nodesRouter(workspaceDir: string): Router {
       if (description !== undefined) node.description = description;
       if (status !== undefined) node.status = status;
       if (tags !== undefined) node.tags = tags;
+      if (validationPath !== undefined) node.validationPath = validationPath;
 
       if (latex !== undefined) {
         await fs.writeFile(path.join(absNodePath, 'content.tex'), latex, 'utf-8');

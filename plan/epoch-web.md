@@ -82,6 +82,34 @@ History tab added to both epoch-web and the VS Code extension, showing recent co
 - ✅ `src/extension/extension.ts` — `getNodeHistory` case calls `getNodeHistory(workspaceDir, msg.nodePath)` and posts `nodeHistory` back
 - ✅ `src/webview/layoutProps.ts` — `showHistory`, `commits`, `loadingHistory`, `historyError`, `onShowHistory` added to `SharedLayoutProps`; all three layouts updated
 
+### Phase 1 Addition — Verification, DAG Display & Thumbnails ✅ (complete, 2026-07-05)
+
+Validation path editing, promotion warnings, DAG graph visualisation, and thumbnail support added to both epoch-web and VS Code extension.
+
+**Completed deliverables:**
+
+- ✅ **Bridge: `GET /api/nodes` now includes `validationPath`** — each node summary exposes its full dep list so the frontend can render DAGs without extra fetches
+- ✅ **Bridge: `PUT /api/nodes/:path` now accepts `validationPath`** — persists dep edits from the UI
+- ✅ **Bridge: `GET /api/nodes/:path/thumbnail`** — serves `data/thumbnail.png` for any node (404 if absent); `Cache-Control: public, max-age=60`
+- ✅ **`epoch-web/lib/api.ts`** — `ValidationPathEntry` interface; `validationPath` on `NodeSummary` and `NodeDetail`; `validationPath` on `UpdateNodeOpts`; `getThumbnailUrl(path)` helper
+- ✅ **`epoch-web/layouts/types.ts`** — `nodeValidationPath: ValidationPathEntry[]` and `onValidationPathChange` added to `LayoutProps`
+- ✅ **`epoch-web/app/workspace/page.tsx`** — `nodeValidationPath` state wired up; loaded in `selectNode`, reset in `handleDeleted`, threaded through `lp`
+- ✅ **`epoch-web/components/NodeHeader.tsx`** — full validation path section: dep chips with live-status lookup, add-dep picker (inline `<select>`), remove dep button; promotion warning row when any dep's live status is below the node's current status; all edits auto-persist via `updateNode`
+- ✅ **`epoch-web/components/ContentArea.tsx`** — threads `allNodes`, `nodeValidationPath`, `onValidationPathChange` down to `NodeHeader`
+- ✅ **`epoch-web/layouts/AnalyticalLayout.tsx` + `FocusLayout.tsx`** — pass new props from `LayoutProps` to `ContentArea`
+- ✅ **`epoch-web/components/DagCanvas.tsx`** (new) — SVG-based layered DAG graph; nodes ranked by longest dep chain (sources at bottom, sinks at top); bezier edges with arrowheads; status color stripe + title + path text per node; thumbnail inset via `<image href={thumbnailUrl}>`; click navigates to node + switches to Analytical layout; pan by drag
+- ✅ **`epoch-web/layouts/NavigatorLayout.tsx`** — Grid / Graph toggle in topbar; Graph mode renders `DagCanvas`; detail panel in Grid mode now shows Validation Path section
+- ✅ **`src/webview/components/NodeEditor.tsx`** — promotion warning: when upgrading status, any dep whose live status is below the target is listed in an amber warning box (soft warning, not a hard block)
+- ✅ **`src/webview/components/DagCanvas.tsx`** (new) — same layered DAG for VS Code webview, using VS Code CSS variables; no thumbnails (filesystem access via message-passing is deferred)
+- ✅ **`src/webview/layouts/NavigatorLayout.tsx`** — Grid / Graph toggle added to topbar; Graph mode renders `DagCanvas` with all workspace nodes
+- ✅ **`src/webview/index.css`** — `.blocking-deps-warning` style for promotion warning
+
+**Key design decisions:**
+- Promotion warning is a **soft advisory** (amber row), not a hard block — the user can still save any status
+- DAG layout uses **longest-path-from-source** layering: sources (no deps) at bottom, sinks (most derived) at top; this places Theorems above Hypotheses above Conjectures above Sketches
+- Thumbnails are served via existing files proxy at `/api/nodes/:path/thumbnail`; SVG `<image>` elements with 404 URLs silently render nothing (no broken-image icon)
+- VS Code webview thumbnails deferred — would require base64 message-passing from extension host
+
 ---
 
 ## Cross-cutting — VS Code Extension Connectivity

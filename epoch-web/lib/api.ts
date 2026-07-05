@@ -1,8 +1,15 @@
+export interface ValidationPathEntry {
+  nodePath: string;
+  title: string;
+  status: string;
+}
+
 export interface NodeSummary {
   path: string;
   title: string;
   status: string;
   tags: string[];
+  validationPath: ValidationPathEntry[];
 }
 
 export interface NodeDetail {
@@ -12,11 +19,15 @@ export interface NodeDetail {
     status: string;
     description?: string;
     tags: string[];
-    validationPath: unknown[];
+    validationPath: ValidationPathEntry[];
     createdAt: string;
     updatedAt: string;
   };
   latex: string;
+}
+
+export function getThumbnailUrl(nodePath: string): string {
+  return `/api/nodes/${encodeURIComponent(nodePath)}/thumbnail`;
 }
 
 export interface Manifest {
@@ -52,6 +63,7 @@ export interface UpdateNodeOpts {
   status?: string;
   description?: string;
   tags?: string[];
+  validationPath?: ValidationPathEntry[];
   commitMessage?: string;
 }
 

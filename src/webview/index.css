@@ -1602,3 +1602,18 @@ body {
   gap: 10px;
   font-size: 0.78em;
 }
+
+/* -------------------------------------------------------------------------
+   Blocking deps promotion warning in NodeEditor
+   ---------------------------------------------------------------------- */
+.blocking-deps-warning {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  background: rgba(249, 169, 90, 0.07);
+  border: 1px solid rgba(249, 169, 90, 0.2);
+  border-radius: 4px;
+}

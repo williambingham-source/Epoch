@@ -75,6 +75,8 @@ export default function FocusLayout(p: LayoutProps) {
             nodeStatus={p.nodeStatus}
             nodeDescription={p.nodeDescription}
             nodeTags={p.nodeTags}
+            nodeValidationPath={p.nodeValidationPath}
+            allNodes={p.nodes}
             latex={p.latex}
             pdfUrl={p.pdfUrl}
             compiling={p.compiling}
@@ -89,6 +91,7 @@ export default function FocusLayout(p: LayoutProps) {
             onStatusChange={p.onStatusChange}
             onDescriptionChange={p.onDescriptionChange}
             onTagsChange={p.onTagsChange}
+            onValidationPathChange={p.onValidationPathChange}
             onDeleted={p.onDeleted}
           />
         </div>

@@ -6,6 +6,7 @@ import PdfPanel from './PdfPanel';
 import CanvasPanel from './CanvasPanel';
 import GitLog from './GitLog';
 import type { ContentTab } from '@/layouts/types';
+import type { NodeSummary, ValidationPathEntry } from '@/lib/api';
 
 const Editor = dynamic(() => import('@/components/Editor'), { ssr: false });
 
@@ -15,6 +16,8 @@ interface Props {
   nodeStatus: string;
   nodeDescription: string;
   nodeTags: string[];
+  nodeValidationPath: ValidationPathEntry[];
+  allNodes: NodeSummary[];
   latex: string;
   pdfUrl: string | null;
   compiling: boolean;
@@ -29,6 +32,7 @@ interface Props {
   onStatusChange: (s: string) => void;
   onDescriptionChange: (d: string) => void;
   onTagsChange: (t: string[]) => void;
+  onValidationPathChange: (vp: ValidationPathEntry[]) => void;
   onDeleted: () => void;
 }
 
@@ -49,9 +53,10 @@ const SAVE_COLOR:  Record<string, string> = {
 
 export default function ContentArea({
   selectedPath, nodeTitle, nodeStatus, nodeDescription, nodeTags,
+  nodeValidationPath, allNodes,
   latex, pdfUrl, compiling, compileError, contentTab, saveStatus, loadError,
   onLatexChange, onSave, onSetContentTab,
-  onTitleChange, onStatusChange, onDescriptionChange, onTagsChange, onDeleted,
+  onTitleChange, onStatusChange, onDescriptionChange, onTagsChange, onValidationPathChange, onDeleted,
 }: Props) {
   return (
     <div className="content-area">
@@ -81,10 +86,13 @@ export default function ContentArea({
           status={nodeStatus}
           description={nodeDescription}
           tags={nodeTags}
+          validationPath={nodeValidationPath}
+          allNodes={allNodes}
           onTitleChange={onTitleChange}
           onStatusChange={onStatusChange}
           onDescriptionChange={onDescriptionChange}
           onTagsChange={onTagsChange}
+          onValidationPathChange={onValidationPathChange}
           onDeleted={onDeleted}
         />
       )}

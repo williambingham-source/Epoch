@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { updateNode, deleteNode } from '@/lib/api';
+import type { NodeSummary, ValidationPathEntry } from '@/lib/api';
 
 const STATUSES = ['Sketch', 'Conjecture', 'Hypothesis', 'Theorem'] as const;
 type Status = typeof STATUSES[number];
@@ -19,16 +20,20 @@ interface Props {
   status: string;
   description: string;
   tags: string[];
+  validationPath: ValidationPathEntry[];
+  allNodes: NodeSummary[];
   onTitleChange: (title: string) => void;
   onStatusChange: (status: string) => void;
   onDescriptionChange: (desc: string) => void;
   onTagsChange: (tags: string[]) => void;
+  onValidationPathChange: (vp: ValidationPathEntry[]) => void;
   onDeleted: () => void;
 }
 
 export default function NodeHeader({
-  path, title, status, description, tags,
-  onTitleChange, onStatusChange, onDescriptionChange, onTagsChange, onDeleted,
+  path, title, status, description, tags, validationPath, allNodes,
+  onTitleChange, onStatusChange, onDescriptionChange, onTagsChange,
+  onValidationPathChange, onDeleted,
 }: Props) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [draftTitle, setDraftTitle] = useState(title);
@@ -37,13 +42,12 @@ export default function NodeHeader({
   const [tagInput, setTagInput] = useState('');
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [addingDep, setAddingDep] = useState(false);
+  const [depSelection, setDepSelection] = useState('');
   const titleInputRef = useRef<HTMLInputElement>(null);
   const tagInputRef = useRef<HTMLInputElement>(null);
-
-  // Desc auto-save timer
   const descTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Sync state when node changes
   useEffect(() => {
     setDraftTitle(title);
     setDraftDesc(description);
@@ -51,6 +55,8 @@ export default function NodeHeader({
     setAddingTag(false);
     setTagInput('');
     setConfirmDelete(false);
+    setAddingDep(false);
+    setDepSelection('');
   }, [title, description, path]);
 
   // --- Title ---
@@ -117,6 +123,34 @@ export default function NodeHeader({
     } catch { /* silent */ }
   }
 
+  // --- Validation path ---
+  const available = allNodes.filter(
+    (n) => n.path !== path && !validationPath.some((d) => d.nodePath === n.path),
+  );
+
+  async function confirmDep() {
+    const n = available.find((a) => a.path === depSelection);
+    if (!n) return;
+    const next: ValidationPathEntry[] = [
+      ...validationPath,
+      { nodePath: n.path, title: n.title, status: n.status },
+    ];
+    try {
+      await updateNode(path, { validationPath: next });
+      onValidationPathChange(next);
+    } catch { /* silent */ }
+    setDepSelection('');
+    setAddingDep(false);
+  }
+
+  async function removeDep(i: number) {
+    const next = validationPath.filter((_, idx) => idx !== i);
+    try {
+      await updateNode(path, { validationPath: next });
+      onValidationPathChange(next);
+    } catch { /* silent */ }
+  }
+
   // --- Delete ---
   async function handleDelete() {
     setSaving(true);
@@ -130,6 +164,19 @@ export default function NodeHeader({
   }
 
   const safeStatus = STATUSES.includes(status as Status) ? (status as Status) : 'Sketch';
+  const safeStatusIdx = STATUSES.indexOf(safeStatus);
+
+  // Promotion warning: deps whose live status is below the current node status
+  const blockingDeps = validationPath
+    .map((dep) => {
+      const live = allNodes.find((n) => n.path === dep.nodePath);
+      const liveStatus = live?.status ?? dep.status;
+      const liveIdx = STATUSES.indexOf(liveStatus as Status);
+      return liveIdx < safeStatusIdx
+        ? { title: dep.title, nodePath: dep.nodePath, liveStatus }
+        : null;
+    })
+    .filter((d): d is NonNullable<typeof d> => d !== null);
 
   return (
     <div className="node-header">
@@ -218,6 +265,73 @@ export default function NodeHeader({
           <button className="tag-add-btn" onClick={() => setAddingTag(true)} title="Add tag">+ tag</button>
         )}
       </div>
+
+      {/* Row 4: validation path */}
+      <div className="vp-section">
+        <div className="vp-header">
+          <span className="vp-label">Validation Path</span>
+        </div>
+        {validationPath.length === 0 && !addingDep && (
+          <span className="vp-empty">No dependencies —</span>
+        )}
+        {validationPath.map((dep, i) => {
+          const live = allNodes.find((n) => n.path === dep.nodePath);
+          const liveStatus = (live?.status ?? dep.status) as Status;
+          const color = STATUS_COLOR[liveStatus] ?? '#888';
+          return (
+            <span key={i} className="vp-dep">
+              <span className="vp-dep-dot" style={{ background: color }} />
+              <span className="vp-dep-title">{dep.title}</span>
+              <span className="vp-dep-status" style={{ color }}>{liveStatus}</span>
+              <button className="vp-dep-remove" onClick={() => removeDep(i)} title="Remove dependency">×</button>
+            </span>
+          );
+        })}
+        {addingDep ? (
+          <div className="vp-add-row">
+            <select
+              className="vp-select"
+              value={depSelection}
+              onChange={(e) => setDepSelection(e.target.value)}
+              autoFocus
+            >
+              <option value="">Select node…</option>
+              {available.map((n) => (
+                <option key={n.path} value={n.path}>
+                  {n.title} ({n.status})
+                </option>
+              ))}
+            </select>
+            <button className="vp-btn-confirm" onClick={confirmDep} disabled={!depSelection}>Add</button>
+            <button className="vp-btn-cancel" onClick={() => { setAddingDep(false); setDepSelection(''); }}>✕</button>
+          </div>
+        ) : (
+          <button
+            className="vp-add-btn"
+            onClick={() => setAddingDep(true)}
+            disabled={available.length === 0}
+            title={available.length === 0 ? 'No other nodes available' : 'Add dependency'}
+          >
+            + dep
+          </button>
+        )}
+      </div>
+
+      {/* Promotion warning */}
+      {blockingDeps.length > 0 && (
+        <div className="promo-warning">
+          <span className="promo-icon">⚠</span>
+          <span className="promo-text">
+            {blockingDeps.length} dep{blockingDeps.length > 1 ? 's' : ''} below {safeStatus}:
+          </span>
+          {blockingDeps.map((d) => (
+            <span key={d.nodePath} className="promo-dep-chip">
+              {d.title}
+              <span className="promo-dep-status">({d.liveStatus})</span>
+            </span>
+          ))}
+        </div>
+      )}
 
       <style>{`
         .node-header {
@@ -369,6 +483,129 @@ export default function NodeHeader({
           padding: 1px 8px;
           width: 100px;
         }
+
+        /* Validation path */
+        .vp-section {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 5px;
+          padding: 5px 12px 6px;
+          border-top: 1px solid var(--border);
+          min-height: 28px;
+        }
+        .vp-label {
+          font-size: 10px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          color: var(--text-muted);
+          opacity: 0.7;
+          margin-right: 2px;
+        }
+        .vp-empty {
+          font-size: 11px;
+          color: var(--text-muted);
+          opacity: 0.5;
+        }
+        .vp-dep {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          background: var(--surface2);
+          border: 1px solid var(--border);
+          border-radius: 10px;
+          padding: 1px 6px 1px 6px;
+          font-size: 11px;
+          color: var(--text-muted);
+          white-space: nowrap;
+        }
+        .vp-dep-dot {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          flex-shrink: 0;
+        }
+        .vp-dep-title { color: var(--text); font-size: 11px; }
+        .vp-dep-status { font-size: 10px; opacity: 0.8; }
+        .vp-dep-remove {
+          background: transparent;
+          color: var(--text-muted);
+          font-size: 12px;
+          padding: 0 1px;
+          opacity: 0.5;
+          line-height: 1;
+        }
+        .vp-dep-remove:hover { opacity: 1; color: var(--error); }
+
+        .vp-add-row {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+        .vp-select {
+          font-size: 11px;
+          background: var(--surface2);
+          border: 1px solid var(--accent);
+          border-radius: 4px;
+          color: var(--text);
+          padding: 2px 4px;
+          max-width: 200px;
+        }
+        .vp-btn-confirm {
+          font-size: 11px;
+          background: var(--accent);
+          color: var(--bg);
+          padding: 2px 8px;
+          border-radius: 4px;
+        }
+        .vp-btn-confirm:disabled { opacity: 0.4; cursor: default; }
+        .vp-btn-cancel {
+          font-size: 11px;
+          background: transparent;
+          color: var(--text-muted);
+          padding: 2px 5px;
+          border-radius: 4px;
+          opacity: 0.6;
+        }
+        .vp-btn-cancel:hover { opacity: 1; }
+        .vp-add-btn {
+          background: transparent;
+          color: var(--text-muted);
+          font-size: 11px;
+          padding: 1px 6px;
+          border-radius: 10px;
+          border: 1px dashed var(--border);
+          opacity: 0.6;
+        }
+        .vp-add-btn:hover:not(:disabled) { opacity: 1; border-color: var(--accent); color: var(--accent); }
+        .vp-add-btn:disabled { cursor: default; opacity: 0.3; }
+
+        /* Promotion warning */
+        .promo-warning {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 5px;
+          padding: 4px 12px 5px;
+          background: rgba(249, 169, 90, 0.08);
+          border-top: 1px solid rgba(249, 169, 90, 0.2);
+          font-size: 11px;
+        }
+        .promo-icon { color: #f9a95a; font-size: 12px; }
+        .promo-text { color: #f9a95a; }
+        .promo-dep-chip {
+          display: inline-flex;
+          align-items: center;
+          gap: 3px;
+          background: rgba(249, 169, 90, 0.1);
+          border: 1px solid rgba(249, 169, 90, 0.25);
+          border-radius: 8px;
+          padding: 0 6px;
+          color: var(--text-muted);
+          font-size: 10px;
+        }
+        .promo-dep-status { opacity: 0.7; }
       `}</style>
     </div>
   );

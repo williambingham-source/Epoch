@@ -4,12 +4,14 @@ import { useState } from 'react';
 import ActivityBar from '@/components/ActivityBar';
 import BreadcrumbBar from '@/components/BreadcrumbBar';
 import LayoutTabs from '@/components/LayoutTabs';
+import DagCanvas from '@/components/DagCanvas';
 import type { LayoutProps } from './types';
 
 const FILTERS = ['All', 'Sketch', 'Conjecture', 'Hypothesis', 'Theorem'] as const;
 
 export default function NavigatorLayout(p: LayoutProps) {
   const [activeFilter, setActiveFilter] = useState<string>('All');
+  const [viewMode, setViewMode] = useState<'grid' | 'graph'>('grid');
 
   const visible = activeFilter === 'All'
     ? p.nodes
@@ -33,6 +35,22 @@ export default function NavigatorLayout(p: LayoutProps) {
             </button>
           ))}
         </div>
+        <div className="lc-view-toggle">
+          <button
+            className={`lc-view-btn${viewMode === 'grid' ? ' active' : ''}`}
+            onClick={() => setViewMode('grid')}
+            title="Grid view"
+          >
+            ⊞ Grid
+          </button>
+          <button
+            className={`lc-view-btn${viewMode === 'graph' ? ' active' : ''}`}
+            onClick={() => setViewMode('graph')}
+            title="DAG graph view"
+          >
+            ⬡ Graph
+          </button>
+        </div>
         <LayoutTabs mode={p.layoutMode} onChange={p.onSetLayout} />
       </div>
 
@@ -45,44 +63,56 @@ export default function NavigatorLayout(p: LayoutProps) {
           onTogglePanel={p.onTogglePanel}
         />
 
-        {/* Card grid */}
-        <div className="lc-grid-wrap">
-          {p.loadError && (
-            <div className="lc-empty" style={{ color: 'var(--error)' }}>
-              Bridge unreachable: {p.loadError}
+        {viewMode === 'graph' ? (
+          /* DAG graph view */
+          <DagCanvas
+            nodes={p.nodes}
+            selectedPath={p.selectedPath}
+            onSelect={(path) => {
+              p.onSelect(path);
+              p.onSetLayout('analytical');
+            }}
+          />
+        ) : (
+          /* Card grid view */
+          <div className="lc-grid-wrap">
+            {p.loadError && (
+              <div className="lc-empty" style={{ color: 'var(--error)' }}>
+                Bridge unreachable: {p.loadError}
+              </div>
+            )}
+            {!p.loadError && visible.length === 0 && (
+              <div className="lc-empty">
+                No nodes{activeFilter !== 'All' ? ` with status "${activeFilter}"` : ''}
+              </div>
+            )}
+            <div className="lc-grid">
+              {visible.map((n) => (
+                <button
+                  key={n.path}
+                  className={`lc-card${p.selectedPath === n.path ? ' selected' : ''}`}
+                  onClick={() => p.onSelect(n.path)}
+                >
+                  <div className={`lc-card-stripe ${n.status}`} />
+                  <div className="lc-card-body">
+                    <div className="lc-card-title">{n.title}</div>
+                    <span className={`status-badge ${n.status}`}>{n.status}</span>
+                    {n.tags.length > 0 && (
+                      <div className="lc-card-tags">
+                        {n.tags.slice(0, 3).map((t) => (
+                          <span key={t} className="tag-chip">{t}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </button>
+              ))}
             </div>
-          )}
-          {!p.loadError && visible.length === 0 && (
-            <div className="lc-empty">
-              No nodes{activeFilter !== 'All' ? ` with status "${activeFilter}"` : ''}
-            </div>
-          )}
-          <div className="lc-grid">
-            {visible.map((n) => (
-              <button
-                key={n.path}
-                className={`lc-card${p.selectedPath === n.path ? ' selected' : ''}`}
-                onClick={() => p.onSelect(n.path)}
-              >
-                <div className={`lc-card-stripe ${n.status}`} />
-                <div className="lc-card-body">
-                  <div className="lc-card-title">{n.title}</div>
-                  <span className={`status-badge ${n.status}`}>{n.status}</span>
-                  {n.tags.length > 0 && (
-                    <div className="lc-card-tags">
-                      {n.tags.slice(0, 3).map((t) => (
-                        <span key={t} className="tag-chip">{t}</span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </button>
-            ))}
           </div>
-        </div>
+        )}
 
-        {/* Detail panel */}
-        {selectedNode && (
+        {/* Detail panel (grid mode only) */}
+        {viewMode === 'grid' && selectedNode && (
           <div className="lc-detail">
             <div className="lc-detail-header">
               <span className={`status-badge ${selectedNode.status}`}>{selectedNode.status}</span>
@@ -96,6 +126,23 @@ export default function NavigatorLayout(p: LayoutProps) {
             {p.nodeTags.length > 0 && (
               <div className="lc-detail-tags">
                 {p.nodeTags.map((t) => <span key={t} className="tag-chip">{t}</span>)}
+              </div>
+            )}
+
+            {p.nodeValidationPath.length > 0 && (
+              <div className="lc-detail-vp">
+                <div className="lc-detail-vp-label">Validation Path</div>
+                {p.nodeValidationPath.map((dep, i) => {
+                  const live = p.nodes.find((n) => n.path === dep.nodePath);
+                  return (
+                    <div key={i} className="lc-detail-dep">
+                      <span className={`status-badge ${live?.status ?? dep.status}`}>
+                        {live?.status ?? dep.status}
+                      </span>
+                      <span>{dep.title}</span>
+                    </div>
+                  );
+                })}
               </div>
             )}
 
@@ -134,7 +181,6 @@ export default function NavigatorLayout(p: LayoutProps) {
         .lc-filters {
           display: flex;
           gap: 4px;
-          flex: 1;
           overflow-x: auto;
         }
         .lc-chip {
@@ -152,6 +198,26 @@ export default function NavigatorLayout(p: LayoutProps) {
         .lc-chip-conjecture.active { color: var(--status-conjecture);  border-color: var(--status-conjecture); }
         .lc-chip-hypothesis.active { color: var(--status-hypothesis);  border-color: var(--status-hypothesis); }
         .lc-chip-theorem.active    { color: var(--status-theorem);     border-color: var(--status-theorem); }
+
+        .lc-view-toggle {
+          display: flex;
+          gap: 2px;
+          background: var(--surface2);
+          border-radius: 6px;
+          padding: 2px;
+          flex-shrink: 0;
+        }
+        .lc-view-btn {
+          font-size: 11px;
+          padding: 2px 10px;
+          border-radius: 4px;
+          background: transparent;
+          color: var(--text-muted);
+          border: none;
+          white-space: nowrap;
+        }
+        .lc-view-btn:hover { color: var(--text); }
+        .lc-view-btn.active { background: var(--surface3); color: var(--text); }
 
         .lc-body {
           flex: 1;
@@ -257,6 +323,26 @@ export default function NavigatorLayout(p: LayoutProps) {
           flex-wrap: wrap;
           gap: 4px;
           margin-bottom: 12px;
+        }
+        .lc-detail-vp {
+          margin-bottom: 12px;
+        }
+        .lc-detail-vp-label {
+          font-size: 10px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          color: var(--text-muted);
+          opacity: 0.7;
+          margin-bottom: 6px;
+        }
+        .lc-detail-dep {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          margin-bottom: 4px;
+          font-size: 12px;
+          color: var(--text-muted);
         }
         .lc-detail-path {
           font-size: 10px;

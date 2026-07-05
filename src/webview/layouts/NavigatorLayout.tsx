@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { SharedLayoutProps } from '../layoutProps.js';
 import type { NodeEntry, ReviewRequest } from '../types.js';
 import { LayoutTabs } from '../components/LayoutTabs.js';
+import { DagCanvas } from '../components/DagCanvas.js';
 
 type StatusFilter = 'All' | 'Sketch' | 'Conjecture' | 'Hypothesis' | 'Theorem';
 const FILTERS: StatusFilter[] = ['All', 'Sketch', 'Conjecture', 'Hypothesis', 'Theorem'];
@@ -41,6 +42,7 @@ export function NavigatorLayout(p: SharedLayoutProps) {
   const [filter, setFilter] = useState<StatusFilter>('All');
   const [navPath, setNavPath] = useState<string | null>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'grid' | 'graph'>('grid');
 
   const ancestors = getAncestors(p.nodes, navPath);
   const navEntry = navPath ? p.nodes.find((n) => n.path === navPath) : null;
@@ -104,6 +106,26 @@ export function NavigatorLayout(p: SharedLayoutProps) {
 
         <div style={{ flex: 1 }} />
 
+        {/* Grid / Graph toggle */}
+        <div style={{ display: 'flex', gap: 2, background: 'var(--vscode-input-background,#313244)', borderRadius: 4, padding: 2, flexShrink: 0 }}>
+          <button
+            className={`btn secondary${viewMode === 'grid' ? ' active' : ''}`}
+            style={{ padding: '1px 8px', fontSize: '0.8em', opacity: viewMode === 'grid' ? 1 : 0.6 }}
+            onClick={() => setViewMode('grid')}
+            title="Grid view"
+          >
+            ⊞ Grid
+          </button>
+          <button
+            className={`btn secondary${viewMode === 'graph' ? ' active' : ''}`}
+            style={{ padding: '1px 8px', fontSize: '0.8em', opacity: viewMode === 'graph' ? 1 : 0.6 }}
+            onClick={() => setViewMode('graph')}
+            title="DAG graph"
+          >
+            ⬡ Graph
+          </button>
+        </div>
+
         <LayoutTabs mode={p.layoutMode} onChange={p.onSetLayout} canvasUrl={p.canvasUrl} />
 
         {/* Quick actions */}
@@ -131,8 +153,20 @@ export function NavigatorLayout(p: SharedLayoutProps) {
 
       {/* ── Body: card grid + detail panel ── */}
       <div className="lc-body">
+        {/* DAG graph view */}
+        {viewMode === 'graph' && (
+          <DagCanvas
+            nodes={p.nodes}
+            selectedPath={p.currentPath}
+            onSelect={(path) => {
+              p.onNavigate(path);
+              p.onSetLayout('focus');
+            }}
+          />
+        )}
+
         {/* Card grid */}
-        <div className="lc-grid-area">
+        {viewMode === 'grid' && <div className="lc-grid-area">
           {filtered.length === 0 && (
             <p className="muted" style={{ padding: '24px 20px' }}>
               {filter !== 'All' ? `No ${filter} nodes here.` : 'No nodes. Add one above.'}
@@ -195,10 +229,10 @@ export function NavigatorLayout(p: SharedLayoutProps) {
               );
             })}
           </div>
-        </div>
+        </div>}
 
-        {/* Detail panel — slides in when a card is selected */}
-        {selectedEntry && (
+        {/* Detail panel — slides in when a card is selected (grid mode only) */}
+        {viewMode === 'grid' && selectedEntry && (
           <div className="lc-detail">
             <div className="lc-detail-header">
               <div className="lc-detail-title">{selectedEntry.node.title}</div>
