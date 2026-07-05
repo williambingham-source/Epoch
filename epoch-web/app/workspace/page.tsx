@@ -1,37 +1,49 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import dynamic from 'next/dynamic';
-import Sidebar from '@/components/Sidebar';
-import NodeHeader from '@/components/NodeHeader';
-import PdfPanel from '@/components/PdfPanel';
-import CanvasPanel from '@/components/CanvasPanel';
-import FileManager from '@/components/FileManager';
-import { listNodes, getNode, getManifest, updateNode, createNode } from '@/lib/api';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import AnalyticalLayout from '@/layouts/AnalyticalLayout';
+import FocusLayout from '@/layouts/FocusLayout';
+import NavigatorLayout from '@/layouts/NavigatorLayout';
+import { listNodes, getNode, getManifest, updateNode, createNode, compileLatex } from '@/lib/api';
 import type { NodeSummary } from '@/lib/api';
-
-const Editor = dynamic(() => import('@/components/Editor'), { ssr: false });
-
-type Tab = 'editor' | 'pdf' | 'canvas' | 'files';
+import type { LayoutMode, ContentTab } from '@/layouts/types';
+import type { SidebarMode } from '@/components/ActivityBar';
 
 export default function WorkspacePage() {
+  // Workspace
   const [nodes, setNodes] = useState<NodeSummary[]>([]);
+  const [workspaceName, setWorkspaceName] = useState('Epoch');
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  // Selected node
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [nodeTitle, setNodeTitle] = useState('');
   const [nodeStatus, setNodeStatus] = useState('Sketch');
   const [nodeDescription, setNodeDescription] = useState('');
   const [nodeTags, setNodeTags] = useState<string[]>([]);
   const [latex, setLatex] = useState('');
-  const [tab, setTab] = useState<Tab>('editor');
-  const [workspaceName, setWorkspaceName] = useState('Epoch');
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved' | 'error'>('saved');
-  const [loadError, setLoadError] = useState<string | null>(null);
+
+  // Compile state (lifted so all layouts can control it)
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [compiling, setCompiling] = useState(false);
+  const [compileError, setCompileError] = useState<string | null>(null);
+  const pdfUrlRef = useRef<string | null>(null);
+
+  // Layout state
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>('analytical');
+  const [contentTab, setContentTab] = useState<ContentTab>('editor');
+  const [panelOpen, setPanelOpen] = useState(true);
+  const [sidebarMode, setSidebarMode] = useState<SidebarMode>('nodes');
 
   useEffect(() => {
-    getManifest()
-      .then((m) => setWorkspaceName(m.name))
-      .catch(() => {});
+    getManifest().then((m) => setWorkspaceName(m.name)).catch(() => {});
     loadNodes();
+  }, []);
+
+  // Revoke blob URL on unmount
+  useEffect(() => {
+    return () => { if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current); };
   }, []);
 
   async function loadNodes() {
@@ -70,6 +82,24 @@ export default function WorkspacePage() {
     }
   }, [selectedPath]);
 
+  const handleCompile = useCallback(async () => {
+    if (!latex.trim()) return;
+    setCompiling(true);
+    setCompileError(null);
+    try {
+      const blob = await compileLatex(latex);
+      if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current);
+      const url = URL.createObjectURL(blob);
+      pdfUrlRef.current = url;
+      setPdfUrl(url);
+      setContentTab('pdf');
+    } catch (err) {
+      setCompileError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setCompiling(false);
+    }
+  }, [latex]);
+
   async function handleCreate(parentPath: string, title: string) {
     const created = await createNode(parentPath, title);
     await loadNodes();
@@ -93,6 +123,8 @@ export default function WorkspacePage() {
     setNodeDescription('');
     setNodeTags([]);
     setLatex('');
+    setPdfUrl(null);
+    pdfUrlRef.current = null;
     await loadNodes();
   }
 
@@ -105,144 +137,42 @@ export default function WorkspacePage() {
     await loadNodes();
   }
 
-  const tabs: { id: Tab; label: string }[] = [
-    { id: 'editor', label: 'LaTeX' },
-    { id: 'pdf', label: 'PDF' },
-    { id: 'canvas', label: 'Canvas' },
-    { id: 'files', label: 'Files' },
-  ];
+  const lp = {
+    workspaceName,
+    nodes,
+    selectedPath,
+    nodeTitle,
+    nodeStatus,
+    nodeDescription,
+    nodeTags,
+    latex,
+    saveStatus,
+    loadError,
+    compiling,
+    pdfUrl,
+    compileError,
+    layoutMode,
+    contentTab,
+    panelOpen,
+    sidebarMode,
+    onSelect: selectNode,
+    onCreate: handleCreate,
+    onRename: handleRename,
+    onDeleted: handleDeleted,
+    onLatexChange: (v: string) => { setLatex(v); setSaveStatus('unsaved'); },
+    onSave: handleSave,
+    onCompile: handleCompile,
+    onSetContentTab: setContentTab,
+    onTitleChange: handleTitleChange,
+    onStatusChange: handleStatusChange,
+    onDescriptionChange: setNodeDescription,
+    onTagsChange: setNodeTags,
+    onSetLayout: setLayoutMode,
+    onTogglePanel: () => setPanelOpen((v) => !v),
+    onSetSidebarMode: setSidebarMode,
+  };
 
-  const statusLabel = { saved: 'Saved', saving: 'Saving…', unsaved: 'Unsaved', error: 'Error saving' }[saveStatus];
-  const statusColor = { saved: 'var(--text-muted)', saving: 'var(--accent)', unsaved: 'var(--text-muted)', error: 'var(--error)' }[saveStatus];
-
-  return (
-    <div className="workspace">
-      <Sidebar
-        nodes={nodes}
-        selectedPath={selectedPath}
-        onSelect={selectNode}
-        onCreate={handleCreate}
-        onRename={handleRename}
-        workspaceName={workspaceName}
-      />
-
-      <main className="main">
-        <div className="topbar">
-          <div className="tabs">
-            {tabs.map((t) => (
-              <button
-                key={t.id}
-                className={`tab${tab === t.id ? ' active' : ''}`}
-                onClick={() => setTab(t.id)}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-          <div className="save-status" style={{ color: statusColor }}>
-            {selectedPath ? statusLabel : ''}
-          </div>
-        </div>
-
-        {selectedPath && (
-          <NodeHeader
-            path={selectedPath}
-            title={nodeTitle}
-            status={nodeStatus}
-            description={nodeDescription}
-            tags={nodeTags}
-            onTitleChange={handleTitleChange}
-            onStatusChange={handleStatusChange}
-            onDescriptionChange={setNodeDescription}
-            onTagsChange={setNodeTags}
-            onDeleted={handleDeleted}
-          />
-        )}
-
-        <div className="panel">
-          {loadError && (
-            <div className="load-error">
-              Bridge unreachable: {loadError}
-            </div>
-          )}
-          {!selectedPath && !loadError && (
-            <div className="select-prompt">Select a node from the sidebar</div>
-          )}
-          {selectedPath && tab === 'editor' && (
-            <Editor
-              value={latex}
-              onChange={(v) => { setLatex(v); setSaveStatus('unsaved'); }}
-              onSave={handleSave}
-            />
-          )}
-          {selectedPath && tab === 'pdf' && (
-            <PdfPanel latex={latex} />
-          )}
-          {tab === 'canvas' && (
-            <CanvasPanel />
-          )}
-          {tab === 'files' && (
-            <FileManager />
-          )}
-        </div>
-      </main>
-
-      <style>{`
-        .workspace {
-          display: flex;
-          height: 100vh;
-          overflow: hidden;
-        }
-        .main {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          overflow: hidden;
-          min-width: 0;
-        }
-        .topbar {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 0 12px;
-          border-bottom: 1px solid var(--border);
-          background: var(--surface);
-          flex-shrink: 0;
-          height: 40px;
-        }
-        .tabs {
-          display: flex;
-          gap: 2px;
-        }
-        .tab {
-          padding: 4px 14px;
-          background: transparent;
-          color: var(--text-muted);
-          border-radius: 4px;
-          font-size: 13px;
-        }
-        .tab:hover { background: var(--surface2); color: var(--text); }
-        .tab.active { background: var(--surface2); color: var(--text); }
-        .save-status {
-          font-size: 12px;
-          transition: color 0.2s;
-        }
-        .panel {
-          flex: 1;
-          overflow: hidden;
-          display: flex;
-          flex-direction: column;
-        }
-        .select-prompt, .load-error {
-          flex: 1;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: var(--text-muted);
-          font-size: 13px;
-        }
-        .load-error { color: var(--error); }
-      `}</style>
-    </div>
-  );
+  if (layoutMode === 'focus') return <FocusLayout {...lp} />;
+  if (layoutMode === 'navigator') return <NavigatorLayout {...lp} />;
+  return <AnalyticalLayout {...lp} />;
 }

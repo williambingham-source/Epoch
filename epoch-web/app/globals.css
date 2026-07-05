@@ -1,16 +1,36 @@
 :root {
-  --bg: #111219;
-  --surface: #1a1c28;
-  --surface2: #22263a;
-  --border: #2e3252;
-  --accent: #7c8fd6;
-  --accent-dim: #4a5699;
-  --text: #dddaf0;
-  --text-muted: #8a87a8;
-  --success: #5dbf8a;
-  --error: #e06c75;
-  --font-mono: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
-  --font-sans: system-ui, -apple-system, sans-serif;
+  /* Catppuccin Mocha palette — VS Code webview vars */
+  --bg:            #1e1e2e;
+  --surface:       #181825;
+  --surface2:      #313244;
+  --surface3:      #45475a;
+  --border:        #313244;
+  --border-focus:  #89b4fa;
+  --overlay:       #6c7086;
+  --accent:        #89b4fa;   /* blue */
+  --accent-dim:    #3d5278;
+  --text:          #cdd6f4;
+  --text-muted:    #6c7086;
+  --text-sub:      #a6adc8;
+  --success:       #a6e3a1;
+  --warning:       #f9e2af;
+  --error:         #f38ba8;
+  --font-mono:     'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  --font-sans:     system-ui, -apple-system, sans-serif;
+
+  /* Status colours */
+  --status-sketch:      #585b70;
+  --status-conjecture:  #fab387;
+  --status-hypothesis:  #89b4fa;
+  --status-theorem:     #a6e3a1;
+
+  /* Layout */
+  --activity-bar-width:  40px;
+  --side-panel-width:    248px;
+  --context-panel-width: 244px;
+  --topbar-height:       38px;
+  --statusbar-height:    24px;
+  --drawer-height:       180px;
 }
 
 *, *::before, *::after {
@@ -24,7 +44,7 @@ html, body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-sans);
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.5;
 }
 
@@ -34,24 +54,26 @@ button {
   font-size: inherit;
   border: none;
   border-radius: 4px;
-  padding: 5px 12px;
+  padding: 4px 10px;
   background: var(--surface2);
   color: var(--text);
-  transition: background 0.15s;
+  transition: background 0.12s, color 0.12s;
 }
-
-button:hover {
-  background: var(--border);
-}
+button:hover  { background: var(--surface3); }
+button:disabled { opacity: 0.4; cursor: default; }
 
 button.primary {
   background: var(--accent-dim);
   color: var(--text);
 }
+button.primary:hover { background: var(--accent); color: var(--bg); }
 
-button.primary:hover {
-  background: var(--accent);
+button.danger {
+  background: transparent;
+  color: var(--error);
+  border: 1px solid transparent;
 }
+button.danger:hover { background: rgba(243,139,168,0.12); border-color: var(--error); }
 
 input, textarea {
   font-family: inherit;
@@ -60,30 +82,46 @@ input, textarea {
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 4px;
-  padding: 5px 8px;
+  padding: 4px 8px;
   outline: none;
   width: 100%;
 }
+input:focus, textarea:focus { border-color: var(--border-focus); }
 
-input:focus, textarea:focus {
-  border-color: var(--accent);
+a { color: var(--accent); text-decoration: none; }
+
+/* Status badges */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 10px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.status-badge.Sketch     { background: rgba(88,91,112,0.25);  color: var(--status-sketch);      border: 1px solid var(--status-sketch); }
+.status-badge.Conjecture { background: rgba(250,179,135,0.15); color: var(--status-conjecture);  border: 1px solid var(--status-conjecture); }
+.status-badge.Hypothesis { background: rgba(137,180,250,0.15); color: var(--status-hypothesis);  border: 1px solid var(--status-hypothesis); }
+.status-badge.Theorem    { background: rgba(166,227,161,0.15); color: var(--status-theorem);     border: 1px solid var(--status-theorem); }
+
+/* Tag chip */
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1px 8px;
+  font-size: 11px;
+  color: var(--text-sub);
+  white-space: nowrap;
 }
 
-a {
-  color: var(--accent);
-  text-decoration: none;
-}
-
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 3px;
-}
+::-webkit-scrollbar        { width: 5px; height: 5px; }
+::-webkit-scrollbar-track  { background: transparent; }
+::-webkit-scrollbar-thumb  { background: var(--surface3); border-radius: 3px; }

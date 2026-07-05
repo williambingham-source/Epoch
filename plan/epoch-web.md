@@ -2,7 +2,7 @@
 
 A standalone web application replacing the VS Code extension dependency, with Monaco-based file management and multi-user workspace access via the existing bridge architecture.
 
-**Updated** · 2026-07-04 · 5 phases · ~12 months estimated
+**Updated** · 2026-07-05 · 5 phases · ~12 months estimated
 
 ---
 
@@ -31,6 +31,39 @@ Built and deployed as `epoch-web:latest` Docker image on port 3003. Bridge runs 
 **Not yet built from original Phase 1 scope:**
 - ❌ Git log view (read-only commit history panel)
 - ❌ validationPath / DAG dependency UI
+
+### Phase 1 UI — VS Code webview layout ✅ (complete, 2026-07-05)
+
+Redesigned the workspace UI to match the VS Code extension's three-layout pattern, ported to the web app.
+
+**New components:**
+- ✅ **ActivityBar** (`components/ActivityBar.tsx`) — 40 px icon bar; two modes: node tree / file explorer; click same icon collapses the side panel; active indicator rail on left edge
+- ✅ **LayoutTabs** (`components/LayoutTabs.tsx`) — A/B/C switcher in topbar with underline-active style
+- ✅ **BreadcrumbBar** (`components/BreadcrumbBar.tsx`) — `workspace › slug(s) › node title` display
+- ✅ **ContentArea** (`components/ContentArea.tsx`) — extracted tab bar (LaTeX | PDF | Canvas) + NodeHeader + editor/viewer, shared across Analytical and Focus layouts
+- ✅ **ContextPanel** (`components/ContextPanel.tsx`) — right panel (Analytical only): compile button, PDF status, status badge, tags
+
+**New layouts (`layouts/`):**
+- ✅ **AnalyticalLayout** — 3-column: ActivityBar | collapsible SidePanel | ContentArea | ContextPanel (240 px)
+- ✅ **FocusLayout** — ActivityBar | (optional side panel) | centered ContentArea (max 900 px) | bottom drawer with Compile + Nodes tabs
+- ✅ **NavigatorLayout** — ActivityBar | card grid with status filter chips (All/Sketch/Conjecture/Hypothesis/Theorem) | detail panel slide-in; "Edit Node →" jumps to Analytical
+
+**Updated:**
+- ✅ `globals.css` — full Catppuccin Mocha official palette (`#1e1e2e` base, `#89b4fa` blue, `#fab387` peach, `#a6e3a1` green); status badge + tag chip global classes
+- ✅ `PdfPanel.tsx` — refactored to pure viewer (takes `pdfUrl / compiling / error` props); compile button removed to ContextPanel / FocusDrawer
+- ✅ `workspace/page.tsx` — compile state lifted here (was in PdfPanel); routes to the 3 layouts; `onSave` typed `Promise<void>` throughout
+
+**Deployment note:** Dockerfile copies pre-built `.next/standalone`. Build sequence after source changes:
+```
+cd epoch-web && npx next build
+docker compose -f docker-compose.epoch-stack.yml build epoch-web
+docker rm -f epoch-web && docker compose -f docker-compose.epoch-stack.yml up -d epoch-web
+```
+
+**Known gaps:**
+- ❌ Canvas tab still shows in ContentArea but Excalidraw embed (port 3001) must be running separately
+- ❌ Navigator layout: clicking the ActivityBar icons doesn't open the side panel (panel always hidden in Navigator mode by design — switch to Analytical for the panel)
+- ❌ Bridge process is not persisted by the Docker stack; must be started separately with `.\start-bridge.ps1` in a dedicated terminal
 
 ---
 

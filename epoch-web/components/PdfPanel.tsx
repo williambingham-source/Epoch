@@ -1,45 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { compileLatex } from '@/lib/api';
-
 interface Props {
-  latex: string;
+  pdfUrl: string | null;
+  compiling: boolean;
+  error: string | null;
 }
 
-export default function PdfPanel({ latex }: Props) {
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
-  const [compiling, setCompiling] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (pdfUrl) URL.revokeObjectURL(pdfUrl);
-    };
-  }, [pdfUrl]);
-
-  async function compile() {
-    setCompiling(true);
-    setError(null);
-    try {
-      const blob = await compileLatex(latex);
-      if (pdfUrl) URL.revokeObjectURL(pdfUrl);
-      setPdfUrl(URL.createObjectURL(blob));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setCompiling(false);
-    }
-  }
-
+export default function PdfPanel({ pdfUrl, compiling, error }: Props) {
   return (
     <div className="pdf-panel">
-      <div className="pdf-toolbar">
-        <button className="primary" onClick={compile} disabled={compiling || !latex.trim()}>
-          {compiling ? 'Compiling…' : 'Compile PDF'}
-        </button>
-        {error && <span className="pdf-error">{error}</span>}
-      </div>
       {pdfUrl ? (
         <iframe
           className="pdf-iframe"
@@ -48,7 +17,11 @@ export default function PdfPanel({ latex }: Props) {
         />
       ) : (
         <div className="pdf-placeholder">
-          {compiling ? 'Compiling…' : 'Click "Compile PDF" to preview'}
+          {compiling
+            ? 'Compiling…'
+            : error
+            ? <span style={{ color: 'var(--error)', maxWidth: 400, textAlign: 'center', fontSize: 12 }}>{error}</span>
+            : 'Compile to preview PDF'}
         </div>
       )}
       <style>{`
@@ -57,26 +30,14 @@ export default function PdfPanel({ latex }: Props) {
           flex-direction: column;
           height: 100%;
           overflow: hidden;
-        }
-        .pdf-toolbar {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          padding: 8px 12px;
-          border-bottom: 1px solid var(--border);
-          flex-shrink: 0;
-        }
-        .pdf-error {
-          color: var(--error);
-          font-size: 12px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
+          background: var(--bg);
         }
         .pdf-iframe {
           flex: 1;
           border: none;
           background: #fff;
+          width: 100%;
+          height: 100%;
         }
         .pdf-placeholder {
           flex: 1;
@@ -85,6 +46,7 @@ export default function PdfPanel({ latex }: Props) {
           justify-content: center;
           color: var(--text-muted);
           font-size: 13px;
+          padding: 24px;
         }
       `}</style>
     </div>
