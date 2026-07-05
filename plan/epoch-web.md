@@ -2,7 +2,7 @@
 
 A standalone web application replacing the VS Code extension dependency, with Monaco-based file management and multi-user workspace access via the existing bridge architecture.
 
-**Updated** · 2026-07-05 · 5 phases · ~12 months estimated
+**Updated** · 2026-07-05 (git history) · 5 phases · ~12 months estimated
 
 ---
 
@@ -29,7 +29,7 @@ Built and deployed as `epoch-web:latest` Docker image on port 3003. Bridge runs 
 - ✅ Bridge: `removeNode` and `moveNode` added to `workspace.ts`; DELETE and move routes added to `nodes.ts`
 
 **Not yet built from original Phase 1 scope:**
-- ❌ Git log view (read-only commit history panel)
+- ✅ Git log view (read-only commit history panel) — shipped 2026-07-05
 - ❌ validationPath / DAG dependency UI
 
 ### Phase 1 UI — VS Code webview layout ✅ (complete, 2026-07-05)
@@ -64,6 +64,23 @@ docker rm -f epoch-web && docker compose -f docker-compose.epoch-stack.yml up -d
 - ❌ Canvas tab still shows in ContentArea but Excalidraw embed (port 3001) must be running separately
 - ❌ Navigator layout: clicking the ActivityBar icons doesn't open the side panel (panel always hidden in Navigator mode by design — switch to Analytical for the panel)
 - ❌ Bridge process is not persisted by the Docker stack; must be started separately with `.\start-bridge.ps1` in a dedicated terminal
+
+### Phase 1 Addition — Git History Tab ✅ (complete, 2026-07-05)
+
+History tab added to both epoch-web and the VS Code extension, showing recent commits for the workspace or a selected node.
+
+**New / updated files:**
+- ✅ `src/core/workspace.ts` — `getNodeHistory(workspaceDir, nodePath?, limit)` replaces `getWorkspaceHistory`; uses native `git log` via `runGit` (isomorphic-git dropped for this path — Windows path issues); walks up to parent `.git` for nested workspaces (e.g. `three-distance/` inside the Epoch repo)
+- ✅ `src/bridge/routes/nodes.ts` — `GET /api/nodes/log?path=<nodePath>&limit=N` registered before `/:encodedPath` to avoid parameter capture
+- ✅ `epoch-web/lib/api.ts` — `CommitEntry` interface + `getNodeLog(nodePath, limit)` function
+- ✅ `epoch-web/components/GitLog.tsx` — renders commit list: 7-char hash, message, author, relative time ("2m ago", "3d ago", etc.); shows "Node History" or "Workspace History" header
+- ✅ `epoch-web/components/ContentArea.tsx` — History tab added to tab bar
+- ✅ `src/webview/types.ts` — `CommitEntry`, `getNodeHistory` message (→ extension), `nodeHistory` message (← extension)
+- ✅ `src/webview/components/GitLog.tsx` — same presentational component, no message-passing (App.tsx owns the data flow)
+- ✅ `src/webview/components/ContentArea.tsx` — History tab added; tab bar now visible across all three content modes (Editor / PDF / History)
+- ✅ `src/webview/App.tsx` — `viewMode` extended to `'edit' | 'pdf' | 'history'`; `handleShowHistory` sends `getNodeHistory`; handles `nodeHistory` response
+- ✅ `src/extension/extension.ts` — `getNodeHistory` case calls `getNodeHistory(workspaceDir, msg.nodePath)` and posts `nodeHistory` back
+- ✅ `src/webview/layoutProps.ts` — `showHistory`, `commits`, `loadingHistory`, `historyError`, `onShowHistory` added to `SharedLayoutProps`; all three layouts updated
 
 ---
 
@@ -129,7 +146,7 @@ Replace the VS Code webview with a self-hosted web app. Everything the extension
 - ✅ Excalidraw canvas embedded as an iframe tab
 - ✅ Node metadata panel — title, status, description, tags, delete
 - ✅ File manager — raw workspace filesystem tree, upload, create, delete, rename, preview
-- ❌ Git log view (read-only) — deferred to next iteration
+- ✅ Git log view (read-only) — shipped 2026-07-05
 - ❌ validationPath / DAG dependency UI — deferred to next iteration
 
 ### Not in Phase 1

@@ -97,7 +97,7 @@ Migrate from a single `project.json` per repo to the Fractal Workspace layout.
   path-to-root)
 - [x] Update MCP server with new tools:
   - `init_workspace` · `add_node` · `move_node` · `read_node` · `write_node`
-  - `list_nodes` · `get_workspace_history`
+  - `list_nodes` · `get_workspace_history` (now backed by `getNodeHistory` using native git binary)
 - [x] Update LaTeX compiler to walk `node.json` `validationPath` instead of `project.json`
 
 ---
@@ -117,6 +117,8 @@ Build the primary UI as a VS Code extension with a Webview panel.
   - **Children sidebar** — immediate children rendered as cards; click to navigate, add new
   - **Compile panel** — compiles workspace to PDF via Docker/pdflatex, shows result
   - **PDF viewer** — renders compiled PDF in-webview via pdf.js (lazy-loaded)
+  - **History tab** — git commit log for the workspace or selected node; same three-layout pattern as epoch-web (Editor / PDF / History tabs in ContentArea); message-passing via `getNodeHistory` → `nodeHistory`
+  - **Three layouts** — Analytical (3-column), Focus (full-width + bottom drawer), Navigator (card grid); all share `SharedLayoutProps`
 - [x] `package.json` additions — `vscode` engine, `activationEvents`, `contributes`
 - [x] `vite.config.ts` — bundles the Webview app into `dist/webview/`
 - [x] Extension build pipeline (tsc for extension host, Vite for webview)
