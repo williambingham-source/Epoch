@@ -97,7 +97,7 @@ export default function NavigatorLayout(p: LayoutProps) {
                   <div className="lc-card-body">
                     <div className="lc-card-title">{n.title}</div>
                     <span className={`status-badge ${n.status}`}>{n.status}</span>
-                    {n.tags.length > 0 && (
+                    {(n.tags?.length ?? 0) > 0 && (
                       <div className="lc-card-tags">
                         {n.tags.slice(0, 3).map((t) => (
                           <span key={t} className="tag-chip">{t}</span>

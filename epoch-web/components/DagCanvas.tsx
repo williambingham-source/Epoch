@@ -41,7 +41,7 @@ function computeLayout(nodes: NodeSummary[]): {
   while (changed) {
     changed = false;
     for (const n of nodes) {
-      for (const dep of n.validationPath) {
+      for (const dep of (n.validationPath ?? [])) {
         if (!nodeMap.has(dep.nodePath)) continue;
         const depLayer = layers.get(dep.nodePath) ?? 0;
         const cur = layers.get(n.path) ?? 0;
@@ -80,7 +80,7 @@ function computeLayout(nodes: NodeSummary[]): {
         x: startX + i * (NODE_W + H_GAP),
         // maxLayer nodes sit at top (y=PAD), layer-0 nodes at bottom
         y: PAD + (maxLayer - layer) * LAYER_H,
-        deps: node.validationPath
+        deps: (node.validationPath ?? [])
           .filter((d) => nodeMap.has(d.nodePath))
           .map((d) => d.nodePath),
       });

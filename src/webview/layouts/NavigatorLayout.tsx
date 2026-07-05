@@ -290,10 +290,10 @@ export function NavigatorLayout(p: SharedLayoutProps) {
                 </div>
               )}
 
-              {selectedEntry.node.validationPath.length > 0 && (
+              {(selectedEntry.node.validationPath?.length ?? 0) > 0 && (
                 <div className="ctx-section">
                   <div className="ctx-section-label">Validation Path</div>
-                  {selectedEntry.node.validationPath.map((dep, i) => (
+                  {(selectedEntry.node.validationPath ?? []).map((dep, i) => (
                     <div key={i} className="ctx-dep">
                       <span className={`status-badge status-${dep.status.toLowerCase()}`}>
                         {dep.status}

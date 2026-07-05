@@ -28,8 +28,8 @@ export function nodesRouter(workspaceDir: string): Router {
           path: e.path,
           title: e.node.title,
           status: e.node.status,
-          tags: e.node.tags,
-          validationPath: e.node.validationPath,
+          tags: e.node.tags ?? [],
+          validationPath: e.node.validationPath ?? [],
         })),
       );
     } catch (err) {
