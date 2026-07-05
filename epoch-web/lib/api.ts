@@ -163,6 +163,23 @@ function fileToBase64(file: File): Promise<string> {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Git history
+// ---------------------------------------------------------------------------
+
+export interface CommitEntry {
+  hash: string;
+  message: string;
+  author: string;
+  timestamp: number; // Unix seconds
+}
+
+export async function getNodeLog(nodePath: string, limit = 50): Promise<CommitEntry[]> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (nodePath) params.set('path', nodePath);
+  return (await apiFetch(`/api/nodes/log?${params}`)).json();
+}
+
 export async function compileLatex(latex: string): Promise<Blob> {
   const res = await fetch('/api/compile', {
     method: 'POST',

@@ -8,6 +8,7 @@ import {
   writeNode,
   listNodes,
   readManifest,
+  getNodeHistory,
 } from '../core/workspace.js';
 import { compileWorkspace } from '../tools/latex-compiler.js';
 import { getRemoteInfo, pushWorkspace, pullWorkspace } from '../core/sync.js';
@@ -314,6 +315,12 @@ function createPanel(context: vscode.ExtensionContext, workspaceDir: string): vs
             // Auto-push so the review reaches collaborators
             void pushWorkspace(workspaceDir).catch(() => { /* non-fatal */ });
             void review; // used above via listReviews
+            break;
+          }
+
+          case 'getNodeHistory': {
+            const commits = await getNodeHistory(workspaceDir, msg.nodePath ?? undefined, 60);
+            void panel.webview.postMessage({ type: 'nodeHistory', commits } satisfies ToWebview);
             break;
           }
 

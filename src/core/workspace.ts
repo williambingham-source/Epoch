@@ -1,6 +1,7 @@
 import git from 'isomorphic-git';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { findGitRoot, runGit } from './_git.js';
 import { ProjectStatus } from '../types/project.js';
 import { Manifest, isManifest } from '../types/manifest.js';
 import { ResearchNode, isResearchNode } from '../types/node.js';
@@ -392,11 +393,64 @@ export async function moveNode(opts: MoveNodeOptions): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// History (delegates to git log on the workspace root)
+// History
 // ---------------------------------------------------------------------------
 
-export async function getWorkspaceHistory(
+export interface CommitEntry {
+  hash: string;
+  message: string;
+  author: string;
+  timestamp: number; // Unix seconds
+}
+
+/**
+ * Returns recent commits for the workspace or a specific node directory.
+ *
+ * Uses the native git binary (via runGit) for Windows compatibility.
+ * Walks up to the nearest .git to handle workspaces nested inside a parent repo.
+ */
+export async function getNodeHistory(
   workspaceDir: string,
-): Promise<git.ReadCommitResult[]> {
-  return git.log({ fs, dir: workspaceDir });
+  nodePath?: string,
+  limit = 50,
+): Promise<CommitEntry[]> {
+  const gitRoot = await findGitRoot(workspaceDir);
+  if (!gitRoot) return [];
+
+  const relWorkspace = path.relative(gitRoot, workspaceDir).replace(/\\/g, '/');
+
+  const args = [
+    'log',
+    `--max-count=${limit}`,
+    '--format=%H\x1f%s\x1f%an\x1f%at',
+    '--',
+  ];
+
+  if (nodePath) {
+    args.push(relWorkspace ? `${relWorkspace}/${nodePath}` : nodePath);
+  } else if (relWorkspace) {
+    args.push(relWorkspace);
+  } else {
+    args.push('.');
+  }
+
+  let stdout: string;
+  try {
+    ({ stdout } = await runGit(args, gitRoot));
+  } catch {
+    return [];
+  }
+
+  return stdout
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => {
+      const [hash, message, author, ts] = line.split('\x1f');
+      return {
+        hash: (hash ?? '').slice(0, 7),
+        message: (message ?? '').trim(),
+        author: author ?? '',
+        timestamp: parseInt(ts ?? '0', 10),
+      };
+    });
 }

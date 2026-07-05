@@ -6,7 +6,7 @@ interface Props {
   compiling: boolean;
   result: CompileResult | null;
   hasPdf: boolean;
-  viewMode: 'edit' | 'pdf';
+  viewMode: 'edit' | 'pdf' | 'history';
   onCompile: () => void;
   onToggleView: () => void;
 }

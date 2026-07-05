@@ -9,6 +9,7 @@ import {
   removeNode,
   moveNode,
   readManifest,
+  getNodeHistory,
   type AddNodeOptions,
   type WriteNodeOptions,
 } from '../../core/workspace.js';
@@ -39,6 +40,19 @@ export function nodesRouter(workspaceDir: string): Router {
     try {
       const manifest = await readManifest(workspaceDir);
       res.json(manifest);
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // GET /api/nodes/log?path=<node-path>&limit=50
+  // Returns recent commits for the workspace or a specific node directory.
+  router.get('/log', async (req, res) => {
+    try {
+      const nodePath = (req.query['path'] as string | undefined)?.trim() || undefined;
+      const limit = Math.min(Math.max(1, parseInt((req.query['limit'] as string) ?? '50', 10)), 200);
+      const entries = await getNodeHistory(workspaceDir, nodePath, limit);
+      res.json(entries);
     } catch (err) {
       res.status(500).json({ error: String(err) });
     }

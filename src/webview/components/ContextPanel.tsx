@@ -5,7 +5,7 @@ interface ContextPanelProps {
   compiling: boolean;
   compileResult: CompileResult | null;
   hasPdf: boolean;
-  viewMode: 'edit' | 'pdf';
+  viewMode: 'edit' | 'pdf' | 'history';
   onCompile: () => void;
   onToggleView: () => void;
   editingNode: ResearchNode | null;

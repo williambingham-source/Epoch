@@ -79,6 +79,7 @@ export function FocusLayout(p: SharedLayoutProps) {
           showReview={p.showReview}
           showPdf={p.showPdf}
           showEditor={p.showEditor}
+          showHistory={p.showHistory}
           activeReview={p.activeReview}
           pdfBase64={p.pdfBase64}
           pdfFileName={p.pdfFileName}
@@ -88,6 +89,9 @@ export function FocusLayout(p: SharedLayoutProps) {
           allNodes={p.nodes}
           isDirty={p.isDirty}
           nodeReview={p.nodeReview}
+          commits={p.commits}
+          loadingHistory={p.loadingHistory}
+          historyError={p.historyError}
           onNodeChange={p.onNodeChange}
           onSave={p.onSave}
           onOpenFolder={p.onOpenFolder}
@@ -96,6 +100,8 @@ export function FocusLayout(p: SharedLayoutProps) {
           onCompile={p.onCompile}
           onSubmitDecision={p.onSubmitDecision}
           onCloseReview={p.onCloseReview}
+          onShowHistory={p.onShowHistory}
+          onToggleView={p.onToggleView}
         />
       </div>
 

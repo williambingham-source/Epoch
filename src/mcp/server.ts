@@ -24,7 +24,7 @@ import {
   writeNode,
   listNodes,
   readManifest,
-  getWorkspaceHistory,
+  getNodeHistory,
 } from '../core/workspace.js';
 
 // Compilers
@@ -433,13 +433,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'get_workspace_history': {
-        const log = await getWorkspaceHistory(str('workspaceDir'));
-        const summary = log.map((c) => ({
-          oid: c.oid,
-          message: c.commit.message.trim(),
-          author: c.commit.author,
-        }));
-        return { content: [{ type: 'text', text: JSON.stringify(summary, null, 2) }] };
+        const entries = await getNodeHistory(str('workspaceDir'));
+        return { content: [{ type: 'text', text: JSON.stringify(entries, null, 2) }] };
       }
 
       case 'compile_workspace': {

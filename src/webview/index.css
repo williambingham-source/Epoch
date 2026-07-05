@@ -1485,3 +1485,120 @@ body {
   padding: 1px 6px;
   font-size: 13px;
 }
+
+/* =========================================================================
+   CONTENT AREA TAB BAR (Editor / PDF / History)
+   ========================================================================= */
+
+.ca-tabbar {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--vscode-panel-border, #3b3b5c);
+  flex-shrink: 0;
+  background: var(--vscode-sideBar-background, #1e1e2e);
+  padding: 0 4px;
+}
+
+.ca-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--vscode-descriptionForeground, #a6adc8);
+  padding: 6px 12px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.82em;
+  white-space: nowrap;
+}
+.ca-tab:hover {
+  color: var(--vscode-editor-foreground, #cdd6f4);
+}
+.ca-tab.active,
+.ca-tab:disabled {
+  color: var(--vscode-textLink-foreground, #89b4fa);
+  border-bottom-color: var(--vscode-textLink-foreground, #89b4fa);
+  cursor: default;
+}
+
+/* =========================================================================
+   GIT LOG (History tab)
+   ========================================================================= */
+
+.git-log {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.gl-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--vscode-panel-border, #3b3b5c);
+  flex-shrink: 0;
+}
+
+.gl-title {
+  font-size: 0.78em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--vscode-descriptionForeground, #a6adc8);
+}
+
+.gl-state {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  font-size: 0.88em;
+}
+
+.gl-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.gl-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 7px 14px;
+  border-bottom: 1px solid var(--vscode-panel-border, #3b3b5c);
+}
+.gl-row:hover {
+  background: var(--vscode-list-hoverBackground, #313244);
+}
+
+.gl-hash {
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.82em;
+  color: var(--vscode-textLink-foreground, #89b4fa);
+  flex-shrink: 0;
+  width: 52px;
+  padding-top: 1px;
+}
+
+.gl-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.gl-message {
+  font-size: 0.88em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gl-meta {
+  display: flex;
+  gap: 10px;
+  font-size: 0.78em;
+}

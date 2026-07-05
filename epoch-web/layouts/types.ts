@@ -2,7 +2,7 @@ import type { NodeSummary } from '@/lib/api';
 import type { SidebarMode } from '@/components/ActivityBar';
 
 export type LayoutMode = 'analytical' | 'focus' | 'navigator';
-export type ContentTab = 'editor' | 'pdf' | 'canvas';
+export type ContentTab = 'editor' | 'pdf' | 'canvas' | 'history';
 
 export interface LayoutProps {
   // workspace

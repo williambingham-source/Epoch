@@ -9,6 +9,7 @@ import type {
   SyncResult,
   ReviewRequest,
   ProjectStatus,
+  CommitEntry,
   ToWebview,
 } from './types.js';
 import type { LayoutMode, SharedLayoutProps } from './layoutProps.js';
@@ -62,7 +63,10 @@ export function App() {
   const [compileResult, setCompileResult] = useState<CompileResult | null>(null);
   const [pdfBase64, setPdfBase64] = useState<string | null>(null);
   const [pdfFileName, setPdfFileName] = useState('');
-  const [viewMode, setViewMode] = useState<'edit' | 'pdf'>('edit');
+  const [viewMode, setViewMode] = useState<'edit' | 'pdf' | 'history'>('edit');
+  const [commits, setCommits] = useState<CommitEntry[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [remoteInfo, setRemoteInfo] = useState<RemoteInfo | null>(null);
   const [syncing, setSyncing] = useState(false);
@@ -115,6 +119,10 @@ export function App() {
             prev ? (msg.reviews.find((r) => r.id === prev.id) ?? null) : null,
           );
           break;
+        case 'nodeHistory':
+          setCommits(msg.commits);
+          setLoadingHistory(false);
+          break;
         case 'error':
           setCompiling(false);
           setSyncing(false);
@@ -154,7 +162,22 @@ export function App() {
       setEditingNode(null);
       setIsDirty(false);
     }
+    // Re-fetch history for the new path when in history mode
+    if (viewMode === 'history') {
+      setCommits([]);
+      setLoadingHistory(true);
+      setHistoryError(null);
+      vscode.postMessage({ type: 'getNodeHistory', nodePath: path });
+    }
     vscode.postMessage({ type: 'navigateTo', nodePath: path });
+  };
+
+  const handleShowHistory = () => {
+    setViewMode('history');
+    setCommits([]);
+    setLoadingHistory(true);
+    setHistoryError(null);
+    vscode.postMessage({ type: 'getNodeHistory', nodePath: currentPath });
   };
 
   const handleNodeChange = (node: ResearchNode) => {
@@ -188,6 +211,10 @@ export function App() {
 
   const handleToggleView = () => {
     setViewMode((m) => (m === 'pdf' ? 'edit' : 'pdf'));
+  };
+
+  const handleSetViewMode = (mode: 'edit' | 'pdf' | 'history') => {
+    setViewMode(mode);
   };
 
   const handlePush = () => {
@@ -262,7 +289,8 @@ export function App() {
 
   const showReview = activeReview !== null;
   const showPdf = !showReview && viewMode === 'pdf' && pdfBase64 !== null;
-  const showEditor = !showReview && !showPdf && currentPath !== null && editingNode !== null;
+  const showHistory = !showReview && viewMode === 'history';
+  const showEditor = !showReview && !showPdf && !showHistory && currentPath !== null && editingNode !== null;
 
   // ---------------------------------------------------------------------------
   // Shared props bundle
@@ -287,6 +315,10 @@ export function App() {
     showReview,
     showPdf,
     showEditor,
+    showHistory,
+    commits,
+    loadingHistory,
+    historyError,
     error,
     remoteInfo,
     syncing,
@@ -298,6 +330,7 @@ export function App() {
     layoutMode,
     canvasUrl,
     onNavigate: handleNavigate,
+    onShowHistory: handleShowHistory,
     onNodeChange: handleNodeChange,
     onSave: handleSave,
     onAddNode: handleAddNode,

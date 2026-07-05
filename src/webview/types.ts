@@ -41,6 +41,13 @@ export interface Manifest {
   createdAt: string;
 }
 
+export interface CommitEntry {
+  hash: string;
+  message: string;
+  author: string;
+  timestamp: number; // Unix seconds
+}
+
 export interface CompileResult {
   success: boolean;
   outputPath?: string;
@@ -109,7 +116,8 @@ export type ToExtension =
   | { type: 'getRemoteInfo' }
   | { type: 'openExternal'; url: string }
   | { type: 'createReview'; nodePath: string; proposedStatus: ProjectStatus; comment: string }
-  | { type: 'submitDecision'; reviewId: string; verdict: 'approved' | 'rejected'; comment: string };
+  | { type: 'submitDecision'; reviewId: string; verdict: 'approved' | 'rejected'; comment: string }
+  | { type: 'getNodeHistory'; nodePath: string | null };
 
 // ---------------------------------------------------------------------------
 // Extension → Webview
@@ -122,4 +130,5 @@ export type ToWebview =
   | { type: 'remoteInfo'; info: RemoteInfo }
   | { type: 'syncResult'; result: SyncResult; action: 'push' | 'pull' }
   | { type: 'reviews'; reviews: ReviewRequest[] }
+  | { type: 'nodeHistory'; commits: CommitEntry[] }
   | { type: 'error'; message: string };

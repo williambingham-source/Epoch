@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import NodeHeader from './NodeHeader';
 import PdfPanel from './PdfPanel';
 import CanvasPanel from './CanvasPanel';
+import GitLog from './GitLog';
 import type { ContentTab } from '@/layouts/types';
 
 const Editor = dynamic(() => import('@/components/Editor'), { ssr: false });
@@ -32,9 +33,10 @@ interface Props {
 }
 
 const TABS: { id: ContentTab; label: string }[] = [
-  { id: 'editor', label: 'LaTeX' },
-  { id: 'pdf',    label: 'PDF'   },
-  { id: 'canvas', label: 'Canvas' },
+  { id: 'editor',  label: 'LaTeX'   },
+  { id: 'pdf',     label: 'PDF'     },
+  { id: 'canvas',  label: 'Canvas'  },
+  { id: 'history', label: 'History' },
 ];
 
 const SAVE_LABEL:  Record<string, string> = { saved: 'Saved', saving: 'Saving…', unsaved: 'Unsaved', error: 'Error' };
@@ -107,6 +109,9 @@ export default function ContentArea({
         )}
         {contentTab === 'canvas' && (
           <CanvasPanel />
+        )}
+        {contentTab === 'history' && (
+          <GitLog nodePath={selectedPath} />
         )}
       </div>
 

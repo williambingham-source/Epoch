@@ -7,6 +7,7 @@ import type {
   SyncResult,
   ReviewRequest,
   ProjectStatus,
+  CommitEntry,
 } from './types.js';
 
 export type LayoutMode = 'analytical' | 'focus' | 'navigator';
@@ -40,6 +41,12 @@ export interface SharedLayoutProps {
   showReview: boolean;
   showPdf: boolean;
   showEditor: boolean;
+  showHistory: boolean;
+
+  // === Git history ===
+  commits: CommitEntry[];
+  loadingHistory: boolean;
+  historyError: string | null;
 
   // === Error ===
   error: string | null;
@@ -61,6 +68,7 @@ export interface SharedLayoutProps {
 
   // === Handlers ===
   onNavigate: (path: string | null) => void;
+  onShowHistory: () => void;
   onNodeChange: (node: ResearchNode) => void;
   onSave: () => void;
   onAddNode: (parentPath: string | null, title: string) => void;
