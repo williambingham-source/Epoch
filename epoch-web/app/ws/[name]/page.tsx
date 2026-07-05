@@ -1,6 +1,6 @@
 'use client';
 
-import { useParams } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import AnalyticalLayout from '@/layouts/AnalyticalLayout';
 import FocusLayout from '@/layouts/FocusLayout';
@@ -20,6 +20,8 @@ import type { SidebarMode } from '@/components/ActivityBar';
 
 export default function WorkspacePage() {
   const { name } = useParams<{ name: string }>();
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   // Point all api calls at /ws/<name>/api/*
   useEffect(() => {
@@ -54,7 +56,11 @@ export default function WorkspacePage() {
   const [panelOpen, setPanelOpen] = useState(true);
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>('nodes');
 
+  // Whether we've already auto-selected the node from the URL on this workspace load
+  const didAutoSelect = useRef(false);
+
   useEffect(() => {
+    didAutoSelect.current = false;
     getManifest().then((m) => setWorkspaceName(m.name)).catch(() => {});
     loadNodes();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -63,6 +69,17 @@ export default function WorkspacePage() {
   useEffect(() => {
     return () => { if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current); };
   }, []);
+
+  // Auto-select node from ?node= URL param after nodes are loaded
+  useEffect(() => {
+    if (didAutoSelect.current || nodes.length === 0 || selectedPath !== null) return;
+    const nodeParam = searchParams.get('node');
+    if (nodeParam) {
+      didAutoSelect.current = true;
+      selectNode(nodeParam);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodes]);
 
   async function loadNodes() {
     try {
@@ -77,6 +94,8 @@ export default function WorkspacePage() {
     setSelectedPath(path);
     setLatex('');
     setSaveStatus('saved');
+    // Reflect selection in the URL so the link is shareable / browser back works
+    router.replace(`/ws/${name}?node=${encodeURIComponent(path)}`, { scroll: false });
     try {
       const detail = await getNode(path);
       setLatex(detail.latex ?? '');
@@ -149,13 +168,20 @@ export default function WorkspacePage() {
     setLatex('');
     setPdfUrl(null);
     pdfUrlRef.current = null;
+    // Clear node from URL
+    router.replace(`/ws/${name}`, { scroll: false });
     await loadNodes();
   }
 
   async function handleRename(fromPath: string, toPath: string) {
-    if (selectedPath === fromPath) setSelectedPath(toPath);
-    else if (selectedPath?.startsWith(fromPath + '/'))
-      setSelectedPath(selectedPath.replace(fromPath, toPath));
+    if (selectedPath === fromPath) {
+      setSelectedPath(toPath);
+      router.replace(`/ws/${name}?node=${encodeURIComponent(toPath)}`, { scroll: false });
+    } else if (selectedPath?.startsWith(fromPath + '/')) {
+      const newPath = selectedPath.replace(fromPath, toPath);
+      setSelectedPath(newPath);
+      router.replace(`/ws/${name}?node=${encodeURIComponent(newPath)}`, { scroll: false });
+    }
     await loadNodes();
   }
 
