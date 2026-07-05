@@ -202,19 +202,24 @@ A home screen lists and creates workspaces backed by Gitea repos. The bridge bec
 - ✅ **Bridge: `WORKSPACES_BASE_DIR`** — auto-detected as `path.dirname(WORKSPACE_DIR)`; override via env var
 - ✅ **Bridge: `x-workspace` middleware** — reads header, validates name against allowlist pattern, resolves path, stores in `res.locals.workspaceDir`; path-traversal guard
 - ✅ **Bridge: `withWorkspace()` wrapper** — caches router instances per resolved dir; all workspace-scoped routes (nodes, files, compile, pdf, convert) use it
-- ✅ **Bridge: `GET /api/workspaces`** — scans base dir, returns only subdirs with `manifest.json`; includes `displayName`, `description`, `nodeCount`, `updatedAt`
-- ✅ **Bridge: `POST /api/workspaces`** — creates new workspace via `initWorkspace`; validates name format; returns 409 if already exists
-- ✅ **`epoch-web/lib/api.ts`** — `setApiBase(base)` / `getApiBase()`; all workspace-scoped calls use `_apiBase` (default `/api`); `WorkspaceSummary` type; `listWorkspaces()` + `createWorkspace()` (use `/api` directly, not scoped)
-- ✅ **Home screen at `/`** — `WorkspaceHome` component: card grid of discovered workspaces (name, description, node count, last updated), "New Workspace" modal form, Catppuccin Mocha styling
+- ✅ **Bridge: `GET /api/workspaces`** — scans base dir, returns only subdirs with `manifest.json`; includes `displayName`, `description`, `nodeCount`, `updatedAt`, `hasRemote`
+- ✅ **Bridge: `POST /api/workspaces`** — creates new workspace via `initWorkspace`; validates name format; returns 409 if already exists; optionally creates Gitea repo + pushes initial commit (`createGiteaRepo: true`)
+- ✅ **Bridge: Gitea API integration** (`src/bridge/routes/workspaces.ts`):
+  - `GET /api/workspaces/gitea` — lists all Gitea repos for the configured user; flags each as `isCloned` if found locally
+  - `POST /api/workspaces/:name/clone` — git clones a Gitea repo into `WORKSPACES_BASE_DIR` with credential-injected URL
+  - `GET /api/workspaces/:name/remote` — returns `RemoteInfo` (branch, ahead, behind, displayUrl) from `getRemoteInfo()`
+  - `POST /api/workspaces/:name/push` — auto-stages + commits any unsaved changes, then pushes; returns `SyncResult`
+  - `POST /api/workspaces/:name/pull` — `--ff-only` pull; returns `SyncResult`
+  - Gitea credentials read from env at call time: `GITEA_URL`, `GITEA_USER`, `GITEA_PASS`; Basic auth header injected server-side, never exposed to browser
+- ✅ **`epoch-web/lib/api.ts`** — `setApiBase(base)` / `getApiBase()`; all workspace-scoped calls use `_apiBase` (default `/api`); `WorkspaceSummary` (with `hasRemote`), `GiteaRepo`, `RemoteInfo`, `SyncResult` types; `listWorkspaces()`, `createWorkspace()`, `listGiteaRepos()`, `cloneFromGitea()`, `getWorkspaceRemote()`, `pushWorkspaceSync()`, `pullWorkspaceSync()`
+- ✅ **Home screen at `/`** — `WorkspaceHome` component: card grid of local workspaces + Gitea repos section; push/pull buttons on cards with `hasRemote`; Clone button on uncloned Gitea repos; "Also create Gitea repo" checkbox in create form; toast-style sync result display; Catppuccin Mocha styling
 - ✅ **`/ws/[name]`** — full workspace UI; `setApiBase('/ws/${name}/api')` on mount, cleanup on unmount
 - ✅ **`/ws/[name]/api/[...path]`** — API proxy that forwards `x-workspace: name` header to bridge
 
 ### Remaining for full Phase 2
 
-- ❌ Gitea API integration — list repos, create repo on workspace creation, push/pull
-- ❌ URL-scoped node routing (`/ws/[name]/nodes/[path]`) — currently the selected node is client-side state only
-- ❌ Clone existing Gitea repo into workspace
-- ❌ Bridge allowlist — currently any valid dir name under base dir is accepted
+- ❌ URL-scoped node routing (`/ws/[name]/nodes/[path]`) — currently the selected node is client-side state only (deep-linking deferred)
+- ❌ Bridge allowlist — currently any valid dir name under base dir is accepted; no explicit configured allowlist
 
 ### Deliverables
 

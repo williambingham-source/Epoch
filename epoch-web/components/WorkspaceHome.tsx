@@ -1,9 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { listWorkspaces, createWorkspace } from '@/lib/api';
-import type { WorkspaceSummary } from '@/lib/api';
+import {
+  listWorkspaces,
+  createWorkspace,
+  listGiteaRepos,
+  cloneFromGitea,
+  pushWorkspaceSync,
+  pullWorkspaceSync,
+} from '@/lib/api';
+import type { WorkspaceSummary, GiteaRepo, SyncResult } from '@/lib/api';
 
 function relativeTime(isoString: string): string {
   const diff = Date.now() - new Date(isoString).getTime();
@@ -17,38 +24,67 @@ function relativeTime(isoString: string): string {
   return new Date(isoString).toLocaleDateString();
 }
 
-const STATUS_PALETTE = ['#89b4fa', '#a6e3a1', '#f9a95a', '#cba6f7', '#89dceb'];
+const ACCENT_PALETTE = ['#89b4fa', '#a6e3a1', '#f9a95a', '#cba6f7', '#89dceb', '#f38ba8'];
+
+type SyncState = { busy: boolean; result: SyncResult | null };
 
 export default function WorkspaceHome() {
   const router = useRouter();
+
+  // Local workspaces
   const [workspaces, setWorkspaces] = useState<WorkspaceSummary[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  // Create form state
+  // Gitea repos
+  const [giteaRepos, setGiteaRepos] = useState<GiteaRepo[]>([]);
+  const [giteaLoading, setGiteaLoading] = useState(true);
+  const [giteaError, setGiteaError] = useState<string | null>(null);
+
+  // Per-workspace sync state
+  const [syncStates, setSyncStates] = useState<Record<string, SyncState>>({});
+
+  // Clone state
+  const [cloning, setCloning] = useState<string | null>(null);
+  const [cloneError, setCloneError] = useState<string | null>(null);
+
+  // Create form
   const [creating, setCreating] = useState(false);
   const [formName, setFormName] = useState('');
   const [formDisplay, setFormDisplay] = useState('');
   const [formDesc, setFormDesc] = useState('');
+  const [formGitea, setFormGitea] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function load() {
+  const loadLocal = useCallback(async () => {
     setLoading(true);
-    setError(null);
+    setLoadError(null);
     try {
-      const ws = await listWorkspaces();
-      setWorkspaces(ws);
+      setWorkspaces(await listWorkspaces());
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load workspaces');
+      setLoadError(err instanceof Error ? err.message : 'Failed to load workspaces');
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  const loadGitea = useCallback(async () => {
+    setGiteaLoading(true);
+    setGiteaError(null);
+    try {
+      setGiteaRepos(await listGiteaRepos());
+    } catch (err) {
+      setGiteaError(err instanceof Error ? err.message : 'Gitea unreachable');
+    } finally {
+      setGiteaLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadLocal();
+    loadGitea();
+  }, [loadLocal, loadGitea]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -56,10 +92,15 @@ export default function WorkspaceHome() {
     if (!formName.trim()) { setFormError('Name is required'); return; }
     setSubmitting(true);
     try {
-      await createWorkspace(formName.trim(), formDisplay.trim() || formName.trim(), formDesc.trim() || undefined);
+      await createWorkspace(
+        formName.trim(),
+        formDisplay.trim() || formName.trim(),
+        formDesc.trim() || undefined,
+        formGitea,
+      );
       setCreating(false);
-      setFormName(''); setFormDisplay(''); setFormDesc('');
-      await load();
+      setFormName(''); setFormDisplay(''); setFormDesc(''); setFormGitea(false);
+      await Promise.all([loadLocal(), loadGitea()]);
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Failed to create workspace');
     } finally {
@@ -67,8 +108,43 @@ export default function WorkspaceHome() {
     }
   }
 
+  async function handleClone(name: string) {
+    setCloning(name);
+    setCloneError(null);
+    try {
+      await cloneFromGitea(name);
+      await Promise.all([loadLocal(), loadGitea()]);
+    } catch (err) {
+      setCloneError(err instanceof Error ? err.message : 'Clone failed');
+    } finally {
+      setCloning(null);
+    }
+  }
+
+  async function handlePush(name: string) {
+    setSyncStates((s) => ({ ...s, [name]: { busy: true, result: null } }));
+    const result = await pushWorkspaceSync(name).catch((err) => ({
+      success: false,
+      message: err instanceof Error ? err.message : 'Push failed',
+    }));
+    setSyncStates((s) => ({ ...s, [name]: { busy: false, result } }));
+  }
+
+  async function handlePull(name: string) {
+    setSyncStates((s) => ({ ...s, [name]: { busy: true, result: null } }));
+    const result = await pullWorkspaceSync(name).catch((err) => ({
+      success: false,
+      message: err instanceof Error ? err.message : 'Pull failed',
+    }));
+    setSyncStates((s) => ({ ...s, [name]: { busy: false, result } }));
+  }
+
+  // Gitea repos that are not yet cloned locally
+  const unclonedRepos = giteaRepos.filter((r) => !r.isCloned);
+
   return (
     <div className="wh-root">
+      {/* ── Header ── */}
       <div className="wh-header">
         <div className="wh-logo">
           <span className="wh-logo-mark">⬡</span>
@@ -80,60 +156,161 @@ export default function WorkspaceHome() {
       </div>
 
       <div className="wh-body">
-        {loading && (
-          <p className="wh-muted">Loading workspaces…</p>
-        )}
 
-        {!loading && error && (
+        {/* ── Local workspaces ── */}
+        <div className="wh-section-label">Local Workspaces</div>
+
+        {loading && <p className="wh-muted">Loading…</p>}
+
+        {!loading && loadError && (
           <div className="wh-error">
             <strong>Bridge unreachable</strong>
-            <p>{error}</p>
-            <button className="wh-retry" onClick={load}>Retry</button>
+            <p>{loadError}</p>
+            <button className="wh-retry" onClick={loadLocal}>Retry</button>
           </div>
         )}
 
-        {!loading && !error && workspaces.length === 0 && (
+        {!loading && !loadError && workspaces.length === 0 && (
           <div className="wh-empty">
             <div className="wh-empty-icon">⬡</div>
-            <p>No workspaces found.</p>
+            <p>No local workspaces found.</p>
             <button className="wh-new-btn" onClick={() => setCreating(true)}>
               Create your first workspace
             </button>
           </div>
         )}
 
-        {!loading && !error && workspaces.length > 0 && (
+        {!loading && !loadError && workspaces.length > 0 && (
           <div className="wh-grid">
-            {workspaces.map((ws, i) => (
-              <button
-                key={ws.name}
-                className="wh-card"
-                onClick={() => router.push(`/ws/${ws.name}`)}
-              >
-                <div
-                  className="wh-card-stripe"
-                  style={{ background: STATUS_PALETTE[i % STATUS_PALETTE.length] }}
-                />
+            {workspaces.map((ws, i) => {
+              const sync = syncStates[ws.name];
+              return (
+                <div key={ws.name} className="wh-card">
+                  <div
+                    className="wh-card-stripe"
+                    style={{ background: ACCENT_PALETTE[i % ACCENT_PALETTE.length] }}
+                  />
+                  <div className="wh-card-body">
+                    <button
+                      className="wh-card-link"
+                      onClick={() => router.push(`/ws/${ws.name}`)}
+                    >
+                      <div className="wh-card-title">{ws.displayName}</div>
+                      {ws.description && (
+                        <div className="wh-card-desc">{ws.description}</div>
+                      )}
+                      <div className="wh-card-meta">
+                        <span className="wh-badge">
+                          {ws.nodeCount} node{ws.nodeCount !== 1 ? 's' : ''}
+                        </span>
+                        {ws.hasRemote && (
+                          <span className="wh-badge wh-badge-remote">⎇ git</span>
+                        )}
+                        <span className="wh-muted">{relativeTime(ws.updatedAt)}</span>
+                      </div>
+                      <div className="wh-card-slug">{ws.name}</div>
+                    </button>
+
+                    {ws.hasRemote && (
+                      <div className="wh-card-sync">
+                        {sync?.result && (
+                          <span
+                            className={`wh-sync-msg ${sync.result.success ? 'ok' : 'err'}`}
+                            title={sync.result.details}
+                          >
+                            {sync.result.success ? '✓' : '✗'} {sync.result.message}
+                          </span>
+                        )}
+                        <button
+                          className="wh-sync-btn"
+                          onClick={() => handlePull(ws.name)}
+                          disabled={sync?.busy}
+                          title="Pull from remote"
+                        >
+                          {sync?.busy ? '…' : '↓ Pull'}
+                        </button>
+                        <button
+                          className="wh-sync-btn"
+                          onClick={() => handlePush(ws.name)}
+                          disabled={sync?.busy}
+                          title="Push to remote"
+                        >
+                          {sync?.busy ? '…' : '↑ Push'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── Gitea repos ── */}
+        <div className="wh-section-label" style={{ marginTop: 36 }}>
+          From Gitea
+          {!giteaLoading && !giteaError && (
+            <span className="wh-section-count">
+              {unclonedRepos.length} not yet cloned
+            </span>
+          )}
+        </div>
+
+        {giteaLoading && <p className="wh-muted">Connecting to Gitea…</p>}
+
+        {!giteaLoading && giteaError && (
+          <div className="wh-error wh-error-sm">
+            Gitea not reachable — {giteaError}
+            <button className="wh-retry" style={{ marginLeft: 8 }} onClick={loadGitea}>Retry</button>
+          </div>
+        )}
+
+        {!giteaLoading && !giteaError && unclonedRepos.length === 0 && (
+          <p className="wh-muted">All Gitea repos are already cloned locally.</p>
+        )}
+
+        {cloneError && (
+          <div className="wh-error wh-error-sm" style={{ marginBottom: 10 }}>
+            Clone failed: {cloneError}
+          </div>
+        )}
+
+        {!giteaLoading && !giteaError && unclonedRepos.length > 0 && (
+          <div className="wh-grid">
+            {unclonedRepos.map((repo) => (
+              <div key={repo.name} className="wh-card wh-card-gitea">
+                <div className="wh-card-stripe" style={{ background: '#45475a' }} />
                 <div className="wh-card-body">
-                  <div className="wh-card-title">{ws.displayName}</div>
-                  {ws.description && (
-                    <div className="wh-card-desc">{ws.description}</div>
+                  <div className="wh-card-title">{repo.name}</div>
+                  {repo.description && (
+                    <div className="wh-card-desc">{repo.description}</div>
                   )}
                   <div className="wh-card-meta">
-                    <span className="wh-badge">{ws.nodeCount} node{ws.nodeCount !== 1 ? 's' : ''}</span>
-                    <span className="wh-muted">{relativeTime(ws.updatedAt)}</span>
+                    <span className="wh-badge">Gitea</span>
+                    <span className="wh-muted">{relativeTime(repo.updatedAt)}</span>
                   </div>
-                  <div className="wh-card-slug">{ws.name}</div>
+                  <div className="wh-card-sync">
+                    <button
+                      className="wh-sync-btn wh-clone-btn"
+                      onClick={() => handleClone(repo.name)}
+                      disabled={cloning === repo.name}
+                    >
+                      {cloning === repo.name ? 'Cloning…' : '⬇ Clone'}
+                    </button>
+                  </div>
                 </div>
-              </button>
+              </div>
             ))}
           </div>
         )}
       </div>
 
-      {/* Create workspace modal */}
+      {/* ── Create workspace modal ── */}
       {creating && (
-        <div className="wh-overlay" onClick={(e) => e.target === e.currentTarget && setCreating(false)}>
+        <div
+          className="wh-overlay"
+          onClick={(e) => e.target === e.currentTarget && setCreating(false)}
+        >
           <div className="wh-modal">
             <div className="wh-modal-header">
               <span>New Workspace</span>
@@ -167,14 +344,27 @@ export default function WorkspaceHome() {
                 Description
                 <input
                   className="wh-input"
-                  placeholder="Optional description"
+                  placeholder="Optional"
                   value={formDesc}
                   onChange={(e) => setFormDesc(e.target.value)}
                 />
               </label>
+              <label className="wh-label wh-label-check">
+                <input
+                  type="checkbox"
+                  checked={formGitea}
+                  onChange={(e) => setFormGitea(e.target.checked)}
+                  style={{ width: 14, height: 14, accentColor: 'var(--accent, #89b4fa)' }}
+                />
+                Also create Gitea repo and push initial commit
+              </label>
               {formError && <div className="wh-form-error">{formError}</div>}
               <div className="wh-form-actions">
-                <button type="button" className="wh-btn-secondary" onClick={() => setCreating(false)}>
+                <button
+                  type="button"
+                  className="wh-btn-secondary"
+                  onClick={() => setCreating(false)}
+                >
                   Cancel
                 </button>
                 <button type="submit" className="wh-btn-primary" disabled={submitting}>
@@ -204,21 +394,9 @@ export default function WorkspaceHome() {
           background: var(--surface, #181825);
           flex-shrink: 0;
         }
-        .wh-logo {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-        .wh-logo-mark {
-          font-size: 20px;
-          color: var(--accent, #89b4fa);
-        }
-        .wh-logo-text {
-          font-size: 16px;
-          font-weight: 600;
-          letter-spacing: 0.03em;
-          color: var(--text, #cdd6f4);
-        }
+        .wh-logo { display: flex; align-items: center; gap: 8px; }
+        .wh-logo-mark { font-size: 20px; color: var(--accent, #89b4fa); }
+        .wh-logo-text { font-size: 16px; font-weight: 600; letter-spacing: 0.03em; }
         .wh-new-btn {
           background: var(--accent, #89b4fa);
           color: var(--bg, #1e1e2e);
@@ -234,51 +412,57 @@ export default function WorkspaceHome() {
 
         .wh-body {
           flex: 1;
-          padding: 40px 32px;
-          max-width: 960px;
+          padding: 32px;
+          max-width: 1000px;
           margin: 0 auto;
           width: 100%;
         }
-        .wh-muted {
+        .wh-section-label {
+          font-size: 11px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
           color: var(--text-muted, #6c7086);
-          font-size: 13px;
+          margin-bottom: 12px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
         }
+        .wh-section-count {
+          font-weight: 400;
+          text-transform: none;
+          letter-spacing: 0;
+          font-size: 11px;
+          color: var(--text-muted, #6c7086);
+        }
+        .wh-muted { color: var(--text-muted, #6c7086); font-size: 13px; }
         .wh-error {
           background: color-mix(in srgb, #f38ba8 12%, transparent);
           border: 1px solid color-mix(in srgb, #f38ba8 40%, transparent);
           border-radius: 8px;
-          padding: 20px 24px;
+          padding: 16px 20px;
           color: #f38ba8;
+          font-size: 13px;
         }
-        .wh-error p { margin: 6px 0 12px; font-size: 13px; opacity: 0.8; }
+        .wh-error-sm { padding: 8px 12px; border-radius: 5px; }
+        .wh-error p { margin: 4px 0 10px; font-size: 13px; opacity: 0.8; }
         .wh-retry {
           background: none;
-          border: 1px solid #f38ba8;
-          color: #f38ba8;
+          border: 1px solid currentColor;
+          color: inherit;
           border-radius: 4px;
-          padding: 4px 12px;
-          font-size: 12px;
+          padding: 2px 10px;
+          font-size: 11px;
           cursor: pointer;
         }
-        .wh-empty {
-          text-align: center;
-          padding: 80px 0;
-        }
-        .wh-empty-icon {
-          font-size: 48px;
-          color: var(--border, #313244);
-          margin-bottom: 16px;
-        }
-        .wh-empty p {
-          color: var(--text-muted, #6c7086);
-          margin-bottom: 20px;
-          font-size: 14px;
-        }
+        .wh-empty { text-align: center; padding: 60px 0; }
+        .wh-empty-icon { font-size: 40px; color: var(--border, #313244); margin-bottom: 12px; }
+        .wh-empty p { color: var(--text-muted, #6c7086); margin-bottom: 16px; font-size: 14px; }
 
         .wh-grid {
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-          gap: 14px;
+          gap: 12px;
         }
         .wh-card {
           display: flex;
@@ -286,29 +470,32 @@ export default function WorkspaceHome() {
           border: 1px solid var(--border, #313244);
           border-radius: 8px;
           overflow: hidden;
-          text-align: left;
-          cursor: pointer;
-          transition: border-color 0.12s, box-shadow 0.12s, transform 0.1s;
-          padding: 0;
-          min-height: 110px;
+          transition: border-color 0.12s, box-shadow 0.12s;
         }
-        .wh-card:hover {
-          border-color: var(--accent, #89b4fa);
-          box-shadow: 0 4px 16px rgba(0,0,0,0.35);
-          transform: translateY(-1px);
-        }
-        .wh-card-stripe {
-          width: 5px;
-          flex-shrink: 0;
-        }
+        .wh-card:hover { border-color: var(--surface3, #585b70); }
+        .wh-card-gitea { opacity: 0.75; }
+        .wh-card-stripe { width: 5px; flex-shrink: 0; }
         .wh-card-body {
           flex: 1;
-          padding: 14px 16px;
+          padding: 12px 14px;
           display: flex;
           flex-direction: column;
-          gap: 5px;
+          gap: 0;
           min-width: 0;
         }
+        .wh-card-link {
+          background: none;
+          border: none;
+          padding: 0;
+          text-align: left;
+          cursor: pointer;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          width: 100%;
+          min-width: 0;
+        }
+        .wh-card-link:hover .wh-card-title { color: var(--accent, #89b4fa); }
         .wh-card-title {
           font-size: 14px;
           font-weight: 600;
@@ -316,6 +503,7 @@ export default function WorkspaceHome() {
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
+          transition: color 0.1s;
         }
         .wh-card-desc {
           font-size: 12px;
@@ -327,8 +515,8 @@ export default function WorkspaceHome() {
         .wh-card-meta {
           display: flex;
           align-items: center;
-          gap: 8px;
-          margin-top: 4px;
+          gap: 6px;
+          margin-top: 6px;
         }
         .wh-badge {
           font-size: 11px;
@@ -337,11 +525,52 @@ export default function WorkspaceHome() {
           border-radius: 4px;
           padding: 1px 6px;
         }
+        .wh-badge-remote {
+          color: var(--accent, #89b4fa);
+          background: color-mix(in srgb, #89b4fa 12%, transparent);
+        }
         .wh-card-slug {
           font-size: 10px;
           color: var(--text-muted, #6c7086);
           font-family: monospace;
-          margin-top: auto;
+          margin-top: 4px;
+        }
+        .wh-card-sync {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          margin-top: 10px;
+          padding-top: 8px;
+          border-top: 1px solid var(--border, #313244);
+        }
+        .wh-sync-msg {
+          font-size: 11px;
+          flex: 1;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .wh-sync-msg.ok { color: #a6e3a1; }
+        .wh-sync-msg.err { color: #f38ba8; }
+        .wh-sync-btn {
+          background: var(--surface2, #313244);
+          border: 1px solid var(--border, #45475a);
+          color: var(--text-sub, #a6adc8);
+          border-radius: 4px;
+          padding: 2px 8px;
+          font-size: 11px;
+          cursor: pointer;
+          white-space: nowrap;
+          transition: color 0.1s;
+        }
+        .wh-sync-btn:hover:not(:disabled) { color: var(--text, #cdd6f4); }
+        .wh-sync-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .wh-clone-btn {
+          color: var(--accent, #89b4fa);
+          border-color: color-mix(in srgb, #89b4fa 40%, transparent);
+        }
+        .wh-clone-btn:hover:not(:disabled) {
+          background: color-mix(in srgb, #89b4fa 12%, transparent);
         }
 
         /* Modal */
@@ -377,25 +606,30 @@ export default function WorkspaceHome() {
           color: var(--text-muted, #6c7086);
           font-size: 16px;
           cursor: pointer;
-          padding: 0;
           line-height: 1;
         }
         .wh-modal-close:hover { color: var(--text, #cdd6f4); }
-        .wh-form {
-          padding: 20px;
-          display: flex;
-          flex-direction: column;
-          gap: 14px;
-        }
+        .wh-form { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
         .wh-label {
           display: flex;
           flex-direction: column;
           gap: 5px;
-          font-size: 12px;
-          font-weight: 600;
-          color: var(--text-sub, #a6adc8);
+          font-size: 11px;
+          font-weight: 700;
+          color: var(--text-muted, #6c7086);
           text-transform: uppercase;
-          letter-spacing: 0.04em;
+          letter-spacing: 0.05em;
+        }
+        .wh-label-check {
+          flex-direction: row;
+          align-items: center;
+          gap: 8px;
+          font-size: 12px;
+          text-transform: none;
+          letter-spacing: 0;
+          font-weight: 400;
+          color: var(--text-sub, #a6adc8);
+          cursor: pointer;
         }
         .wh-input {
           background: var(--surface2, #313244);

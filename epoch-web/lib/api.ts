@@ -57,6 +57,7 @@ export interface WorkspaceSummary {
   description?: string;
   nodeCount: number;
   updatedAt: string;
+  hasRemote: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -84,13 +85,60 @@ export async function createWorkspace(
   name: string,
   displayName: string,
   description?: string,
+  createGiteaRepo = false,
 ): Promise<{ name: string; displayName: string }> {
   return (
     await apiFetch('/api/workspaces', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, displayName, description }),
+      body: JSON.stringify({ name, displayName, description, createGiteaRepo }),
     })
+  ).json();
+}
+
+export interface GiteaRepo {
+  name: string;
+  description: string;
+  cloneUrl: string;
+  updatedAt: string;
+  isCloned: boolean;
+}
+
+export interface RemoteInfo {
+  hasRemote: boolean;
+  branch: string;
+  ahead: number;
+  behind: number;
+  displayUrl: string | null;
+}
+
+export interface SyncResult {
+  success: boolean;
+  message: string;
+  details?: string;
+}
+
+export async function listGiteaRepos(): Promise<GiteaRepo[]> {
+  return (await apiFetch('/api/workspaces/gitea')).json();
+}
+
+export async function cloneFromGitea(name: string): Promise<void> {
+  await apiFetch(`/api/workspaces/${encodeURIComponent(name)}/clone`, { method: 'POST' });
+}
+
+export async function getWorkspaceRemote(name: string): Promise<RemoteInfo> {
+  return (await apiFetch(`/api/workspaces/${encodeURIComponent(name)}/remote`)).json();
+}
+
+export async function pushWorkspaceSync(name: string): Promise<SyncResult> {
+  return (
+    await apiFetch(`/api/workspaces/${encodeURIComponent(name)}/push`, { method: 'POST' })
+  ).json();
+}
+
+export async function pullWorkspaceSync(name: string): Promise<SyncResult> {
+  return (
+    await apiFetch(`/api/workspaces/${encodeURIComponent(name)}/pull`, { method: 'POST' })
   ).json();
 }
 
