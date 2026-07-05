@@ -218,7 +218,7 @@ A home screen lists and creates workspaces backed by Gitea repos. The bridge bec
 
 ### Remaining for full Phase 2
 
-- ❌ URL-scoped node routing (`/ws/[name]/nodes/[path]`) — currently the selected node is client-side state only (deep-linking deferred)
+- 🚧 **URL-scoped node routing (`/ws/[name]/nodes/[path]`)** — deep-linking so the selected node is in the URL and navigable via browser back/forward; in progress 2026-07-05
 - ❌ Bridge allowlist — currently any valid dir name under base dir is accepted; no explicit configured allowlist
 
 ### Deliverables
