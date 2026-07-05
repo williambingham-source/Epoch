@@ -2,13 +2,18 @@
 /**
  * Epoch Bridge Service
  * Runs two transports on the same process:
- *   - Express REST API on port 3002 (for Excalidraw browser app)
+ *   - Express REST API on port 3002 (for epoch-web + Excalidraw)
  *   - MCP SSE endpoint at /mcp          (for remote MCP clients)
  *
  * When called with --mcp-stdio, starts stdio MCP only (for Claude Code .mcp.json).
+ *
+ * Multi-workspace: set WORKSPACES_BASE_DIR to the parent directory that contains
+ * all workspace folders.  Defaults to the parent of WORKSPACE_DIR.  Clients send
+ * an  x-workspace: <folder-name>  header to select a workspace per-request.
  */
 import express from 'express';
 import cors from 'cors';
+import * as path from 'path';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 
 import { nodesRouter } from './routes/nodes.js';
@@ -18,6 +23,7 @@ import { compilePngRouter } from './routes/compilePng.js';
 import { convertRouter } from './routes/convert.js';
 import { pdfRouter } from './routes/pdf.js';
 import { providersRouter } from './routes/providers.js';
+import { workspacesRouter } from './routes/workspaces.js';
 import { createBridgeMcpServer, startStdioMcpServer } from './mcp/index.js';
 
 const WORKSPACE_DIR = process.env['WORKSPACE_DIR'];
@@ -28,6 +34,12 @@ if (!WORKSPACE_DIR) {
   process.exit(1);
 }
 
+// Base directory that contains workspace folders.
+// Defaults to the parent of WORKSPACE_DIR so existing single-workspace setups
+// automatically discover their workspace without any extra config.
+const WORKSPACES_BASE_DIR =
+  process.env['WORKSPACES_BASE_DIR'] ?? path.dirname(WORKSPACE_DIR);
+
 // Stdio MCP mode for Claude Code .mcp.json
 if (process.argv.includes('--mcp-stdio')) {
   startStdioMcpServer(WORKSPACE_DIR).catch((err) => {
@@ -35,27 +47,65 @@ if (process.argv.includes('--mcp-stdio')) {
     process.exit(1);
   });
 } else {
-  // Full Express server (REST + SSE MCP)
   const app = express();
-
   app.use(cors());
   app.use(express.json({ limit: '50mb' }));
 
-  // Health check
-  app.get('/health', (_req, res) => {
-    res.json({ ok: true, workspace: WORKSPACE_DIR, provider: process.env['VISION_PROVIDER'] ?? 'anthropic' });
+  // ── Workspace resolution middleware ──────────────────────────────────────
+  // Reads x-workspace header, validates the name, and stores the resolved
+  // absolute path in res.locals.workspaceDir for downstream routers.
+  app.use((req, res, next) => {
+    const wsName = req.headers['x-workspace'] as string | undefined;
+    if (wsName && /^[a-zA-Z0-9_-]+$/.test(wsName)) {
+      const resolved = path.resolve(path.join(WORKSPACES_BASE_DIR, wsName));
+      // Guard against path traversal
+      if (resolved.startsWith(path.resolve(WORKSPACES_BASE_DIR) + path.sep) ||
+          resolved === path.resolve(WORKSPACES_BASE_DIR)) {
+        res.locals['workspaceDir'] = resolved;
+      }
+    }
+    next();
   });
 
-  // REST routes
-  app.use('/api/nodes', nodesRouter(WORKSPACE_DIR));
-  app.use('/api/files', filesRouter(WORKSPACE_DIR));
-  app.use('/api/compile', compileRouter(WORKSPACE_DIR));
-  app.use('/api/compile-png', compilePngRouter(WORKSPACE_DIR));
-  app.use('/api/convert', convertRouter(WORKSPACE_DIR));
-  app.use('/api/pdf', pdfRouter(WORKSPACE_DIR));
+  // ── withWorkspace ────────────────────────────────────────────────────────
+  // Wraps a router factory so that routers are created per workspace dir and
+  // cached — each Router instance is stateless so reuse is safe.
+  function withWorkspace(factory: (dir: string) => express.Router): express.RequestHandler {
+    const cache = new Map<string, express.Router>();
+    return (req, res, next) => {
+      const dir = (res.locals['workspaceDir'] as string | undefined) ?? WORKSPACE_DIR!;
+      let router = cache.get(dir);
+      if (!router) {
+        router = factory(dir);
+        cache.set(dir, router);
+      }
+      router(req, res, next);
+    };
+  }
+
+  // Health check
+  app.get('/health', (_req, res) => {
+    res.json({
+      ok: true,
+      workspace: WORKSPACE_DIR,
+      workspacesBase: WORKSPACES_BASE_DIR,
+      provider: process.env['VISION_PROVIDER'] ?? 'anthropic',
+    });
+  });
+
+  // Workspace management (not workspace-scoped — operates on the base dir)
+  app.use('/api/workspaces', workspacesRouter(WORKSPACES_BASE_DIR));
+
+  // Workspace-scoped REST routes (resolved per-request via x-workspace header)
+  app.use('/api/nodes', withWorkspace(nodesRouter));
+  app.use('/api/files', withWorkspace(filesRouter));
+  app.use('/api/compile', withWorkspace(compileRouter));
+  app.use('/api/compile-png', withWorkspace(compilePngRouter));
+  app.use('/api/convert', withWorkspace(convertRouter));
+  app.use('/api/pdf', withWorkspace(pdfRouter));
   app.use('/api/providers', providersRouter());
 
-  // MCP SSE transport
+  // MCP SSE transport — always uses the default WORKSPACE_DIR (for Claude Code)
   const mcpServer = createBridgeMcpServer(WORKSPACE_DIR);
   const sseTransports = new Map<string, SSEServerTransport>();
 
@@ -79,7 +129,8 @@ if (process.argv.includes('--mcp-stdio')) {
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`[epoch-bridge] REST + MCP SSE listening on 0.0.0.0:${PORT}`);
-    console.log(`[epoch-bridge] workspace: ${WORKSPACE_DIR}`);
-    console.log(`[epoch-bridge] vision provider: ${process.env['VISION_PROVIDER'] ?? 'anthropic'}`);
+    console.log(`[epoch-bridge] default workspace : ${WORKSPACE_DIR}`);
+    console.log(`[epoch-bridge] workspaces base   : ${WORKSPACES_BASE_DIR}`);
+    console.log(`[epoch-bridge] vision provider   : ${process.env['VISION_PROVIDER'] ?? 'anthropic'}`);
   });
 }
