@@ -7,6 +7,7 @@ const GITEA_URL = process.env.GITEA_URL ?? 'http://localhost:3000';
 const GITEA_INTERNAL_URL = process.env.GITEA_INTERNAL_URL ?? GITEA_URL;
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  trustHost: true,
   providers: [
     {
       id: 'gitea',
