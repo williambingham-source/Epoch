@@ -68,6 +68,18 @@ async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   const res = await fetch(path, init);
   if (!res.ok) {
     const body = await res.text().catch(() => '');
+    // Try to extract a structured error message from JSON responses
+    try {
+      const json = JSON.parse(body) as { error?: string; message?: string };
+      const msg = json.error ?? json.message;
+      if (msg) throw new Error(msg);
+    } catch (e) {
+      if (e instanceof SyntaxError) {
+        // Not JSON — fall through to raw body
+      } else {
+        throw e;
+      }
+    }
     throw new Error(body || `HTTP ${res.status}`);
   }
   return res;
@@ -319,6 +331,20 @@ export async function compileLatex(latex: string, nodePath?: string): Promise<Bl
     };
     throw new Error(err.error ?? `Compile failed: ${res.status}`);
   }
+  return res.blob();
+}
+
+/** Fetch a node's cached PDF (saved after last compile). Throws 404 if not yet compiled. */
+export async function getCachedNodePdf(nodePath: string): Promise<Blob> {
+  const res = await fetch(`${_apiBase}/nodes/${encodeURIComponent(nodePath)}/pdf`);
+  if (!res.ok) throw new Error('not cached');
+  return res.blob();
+}
+
+/** Fetch the cached workspace PDF. Throws if not yet compiled. */
+export async function getCachedWorkspacePdf(): Promise<Blob> {
+  const res = await fetch(`${_apiBase}/pdf/workspace`);
+  if (!res.ok) throw new Error('not cached');
   return res.blob();
 }
 

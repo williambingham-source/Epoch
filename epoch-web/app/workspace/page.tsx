@@ -1,10 +1,11 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import AnalyticalLayout from '@/layouts/AnalyticalLayout';
 import FocusLayout from '@/layouts/FocusLayout';
 import NavigatorLayout from '@/layouts/NavigatorLayout';
-import { listNodes, getNode, getManifest, updateNode, createNode, compileLatex } from '@/lib/api';
+import { listNodes, getNode, getManifest, updateNode, createNode, compileLatex, compileWorkspacePdf } from '@/lib/api';
 import type { NodeSummary, ValidationPathEntry } from '@/lib/api';
 import type { LayoutMode, ContentTab } from '@/layouts/types';
 import type { SidebarMode } from '@/components/ActivityBar';
@@ -28,6 +29,7 @@ export default function WorkspacePage() {
   // Compile state (lifted so all layouts can control it)
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [compiling, setCompiling] = useState(false);
+  const [compilingWorkspace, setCompilingWorkspace] = useState(false);
   const [compileError, setCompileError] = useState<string | null>(null);
   const pdfUrlRef = useRef<string | null>(null);
 
@@ -36,6 +38,8 @@ export default function WorkspacePage() {
   const [contentTab, setContentTab] = useState<ContentTab>('editor');
   const [panelOpen, setPanelOpen] = useState(true);
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>('nodes');
+
+  const router = useRouter();
 
   useEffect(() => {
     getManifest().then((m) => setWorkspaceName(m.name)).catch(() => {});
@@ -140,6 +144,35 @@ export default function WorkspacePage() {
     await loadNodes();
   }
 
+  const handleCompileWorkspace = useCallback(async () => {
+    setCompilingWorkspace(true);
+    try {
+      const blob = await compileWorkspacePdf();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${workspaceName}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setCompileError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setCompilingWorkspace(false);
+    }
+  }, [workspaceName]);
+
+  function handleGoWorkspace() {
+    setSelectedPath(null);
+    setNodeTitle('');
+    setNodeStatus('Sketch');
+    setNodeDescription('');
+    setNodeTags([]);
+    setNodeValidationPath([]);
+    setLatex('');
+    setPdfUrl(null);
+    if (pdfUrlRef.current) { URL.revokeObjectURL(pdfUrlRef.current); pdfUrlRef.current = null; }
+    router.replace('/workspace', { scroll: false });
+  }
   const lp = {
     workspaceName,
     nodes,
@@ -153,6 +186,7 @@ export default function WorkspacePage() {
     saveStatus,
     loadError,
     compiling,
+    compilingWorkspace,
     pdfUrl,
     compileError,
     layoutMode,
@@ -166,6 +200,7 @@ export default function WorkspacePage() {
     onLatexChange: (v: string) => { setLatex(v); setSaveStatus('unsaved'); },
     onSave: handleSave,
     onCompile: handleCompile,
+    onCompileWorkspace: handleCompileWorkspace,
     onSetContentTab: setContentTab,
     onTitleChange: handleTitleChange,
     onStatusChange: handleStatusChange,
@@ -177,9 +212,12 @@ export default function WorkspacePage() {
     onSetLayout: setLayoutMode,
     onTogglePanel: () => setPanelOpen((v) => !v),
     onSetSidebarMode: setSidebarMode,
+    onGoWorkspace: handleGoWorkspace,
   };
 
   if (layoutMode === 'focus') return <FocusLayout {...lp} />;
   if (layoutMode === 'navigator') return <NavigatorLayout {...lp} />;
   return <AnalyticalLayout {...lp} />;
 }
+
+

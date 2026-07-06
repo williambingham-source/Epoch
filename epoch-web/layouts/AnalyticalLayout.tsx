@@ -77,14 +77,13 @@ export default function AnalyticalLayout(p: LayoutProps) {
 
         <ContextPanel
           compiling={p.compiling}
-          compilingWorkspace={p.compilingWorkspace}
           pdfUrl={p.pdfUrl}
           compileError={p.compileError}
           latex={p.latex}
+          selectedPath={p.selectedPath}
           nodeStatus={p.nodeStatus}
           nodeTags={p.nodeTags}
           onCompile={p.onCompile}
-          onCompileWorkspace={p.onCompileWorkspace}
         />
       </div>
 

@@ -32,7 +32,7 @@ type SyncState = { busy: boolean; result: SyncResult | null };
 
 export default function WorkspaceHome() {
   const router = useRouter();
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
 
   // Local workspaces
   const [workspaces, setWorkspaces] = useState<WorkspaceSummary[]>([]);
@@ -86,8 +86,17 @@ export default function WorkspaceHome() {
 
   useEffect(() => {
     loadLocal();
-    loadGitea();
-  }, [loadLocal, loadGitea]);
+  }, [loadLocal]);
+
+  // Only fetch Gitea repos once we know the user is authenticated
+  useEffect(() => {
+    if (sessionStatus === 'loading') return;
+    if (sessionStatus === 'authenticated') {
+      loadGitea();
+    } else {
+      setGiteaLoading(false);
+    }
+  }, [sessionStatus, loadGitea]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -271,9 +280,17 @@ export default function WorkspaceHome() {
           )}
         </div>
 
-        {giteaLoading && <p className="wh-muted">Connecting to Gitea…</p>}
+        {giteaLoading && sessionStatus !== 'unauthenticated' && (
+          <p className="wh-muted">Connecting to Gitea…</p>
+        )}
 
-        {!giteaLoading && giteaError && (
+        {sessionStatus === 'unauthenticated' && (
+          <p className="wh-muted">
+            <a href="/api/auth/signin" className="wh-link">Sign in</a> to see and clone your Gitea repositories.
+          </p>
+        )}
+
+        {!giteaLoading && giteaError && sessionStatus === 'authenticated' && (
           <div className="wh-error wh-error-sm">
             Gitea not reachable — {giteaError}
             <button className="wh-retry" style={{ marginLeft: 8 }} onClick={loadGitea}>Retry</button>
@@ -473,6 +490,7 @@ export default function WorkspaceHome() {
           color: var(--text-muted, #6c7086);
         }
         .wh-muted { color: var(--text-muted, #6c7086); font-size: 13px; }
+        .wh-link { color: var(--accent, #89b4fa); text-decoration: underline; }
         .wh-error {
           background: color-mix(in srgb, #f38ba8 12%, transparent);
           border: 1px solid color-mix(in srgb, #f38ba8 40%, transparent);

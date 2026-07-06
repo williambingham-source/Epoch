@@ -60,6 +60,20 @@ export function nodesRouter(workspaceDir: string): Router {
     }
   });
 
+  // GET /api/nodes/:encodedPath/pdf — serve data/content.pdf if it exists
+  router.get('/:encodedPath/pdf', async (req, res) => {
+    try {
+      const nodePath = decodeURIComponent(req.params['encodedPath'] ?? '');
+      const pdfPath = path.join(workspaceDir, nodePath, 'data', 'content.pdf');
+      const buf = await fs.readFile(pdfPath);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.send(buf);
+    } catch {
+      res.status(404).json({ error: 'No cached PDF' });
+    }
+  });
+
   // GET /api/nodes/:encodedPath/thumbnail — serve data/thumbnail.png if it exists
   router.get('/:encodedPath/thumbnail', async (req, res) => {
     try {

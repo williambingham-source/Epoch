@@ -102,7 +102,7 @@ export default function ContentArea({
         {loadError && (
           <div className="ca-message ca-error">Bridge unreachable: {loadError}</div>
         )}
-        {!selectedPath && !loadError && (
+        {!selectedPath && !loadError && contentTab !== 'pdf' && (
           <div className="ca-message">Select a node from the sidebar</div>
         )}
         {selectedPath && contentTab === 'editor' && (
@@ -112,11 +112,11 @@ export default function ContentArea({
             onSave={onSave}
           />
         )}
-        {selectedPath && contentTab === 'pdf' && (
+        {contentTab === 'pdf' && (
           <PdfPanel pdfUrl={pdfUrl} compiling={compiling} error={compileError} />
         )}
         {contentTab === 'canvas' && (
-          <CanvasPanel />
+          <CanvasPanel key={selectedPath ?? 'workspace'} />
         )}
         {contentTab === 'history' && (
           <GitLog nodePath={selectedPath} />

@@ -17,15 +17,32 @@ export function pdfRouter(workspaceDir: string): Router {
       }
 
       const pdfBytes = await fs.readFile(result.outputPath);
-      // Clean up the output file after sending
+      // Clean up the temp compile output, then cache to data/workspace.pdf.
+      // Use pdfBytes already in memory so unlink order doesn't matter.
       fs.unlink(result.outputPath).catch(() => {});
+      const dataDir = path.join(workspaceDir, 'data');
+      fs.mkdir(dataDir, { recursive: true })
+        .then(() => fs.writeFile(path.join(dataDir, 'workspace.pdf'), pdfBytes))
+        .catch(() => {});
 
       res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="workspace.pdf"`);
       res.setHeader('Content-Length', pdfBytes.length);
       res.send(pdfBytes);
     } catch (err) {
       res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // GET /api/pdf/workspace — serve cached workspace.pdf if it exists
+  router.get('/workspace', async (_req, res) => {
+    try {
+      const cached = path.join(workspaceDir, 'data', 'workspace.pdf');
+      const buf = await fs.readFile(cached);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.send(buf);
+    } catch {
+      res.status(404).json({ error: 'No cached workspace PDF' });
     }
   });
 

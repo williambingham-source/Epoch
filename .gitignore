@@ -25,6 +25,9 @@ docker-test/**/*.pdf
 # Gitea server data (local Docker volume)
 gitea/data/
 
+# Per-user workspace data (runtime, not source)
+william/
+
 # Environment / secrets
 .env
 

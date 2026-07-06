@@ -20,7 +20,6 @@ export interface LayoutProps {
   loadError: string | null;
   // compile
   compiling: boolean;
-  compilingWorkspace: boolean;
   pdfUrl: string | null;
   compileError: string | null;
   // ui state
@@ -37,7 +36,6 @@ export interface LayoutProps {
   onLatexChange: (v: string) => void;
   onSave: (v: string) => Promise<void>;
   onCompile: () => void;
-  onCompileWorkspace: () => void;
   onSetContentTab: (tab: ContentTab) => void;
   // metadata handlers
   onTitleChange: (t: string) => void;

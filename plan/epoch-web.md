@@ -243,7 +243,7 @@ Each workspace is a Gitea repo. The web app calls the Gitea API (`http://gitea:3
 ---
 
 ## Phase 3 — Multi-user Auth
-*~6 weeks · Gitea OAuth, per-user workspaces · **in progress (2026-07-05)***
+*~6 weeks · Gitea OAuth, per-user workspaces · **✅ complete (2026-07-06)***
 
 Different people log in with their own Gitea credentials and see only their repos as workspaces.
 
@@ -256,9 +256,7 @@ Different people log in with their own Gitea credentials and see only their repo
 
 - ✅ **Task 5 — User settings page** — `/settings` page with Anthropic/OpenAI key inputs (AES-256-GCM encrypted at rest, keyed on `NEXTAUTH_SECRET`; keys masked in GET response, never sent to browser); vision provider dropdown persisted per user; `⚙` gear link in WorkspaceHome header; bridge `convert` route uses per-user key + provider pref when `x-gitea-user` is present, falls back to server env
 
-### Remaining
-
-- 🔲 **Bridge allowlist** — replace "any valid dir name under base dir" policy with an explicit per-user positive-check layer (path-traversal guard already in place)
+- ✅ **Bridge allowlist** — workspace resolution middleware now requires `manifest.json` to exist at the resolved path before accepting it; path-traversal guard remains as a first layer
 
 ### Auth
 

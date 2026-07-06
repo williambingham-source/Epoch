@@ -14,6 +14,7 @@
 import express from 'express';
 import cors from 'cors';
 import * as path from 'path';
+import { access } from 'fs/promises';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 
 import { nodesRouter } from './routes/nodes.js';
@@ -56,16 +57,24 @@ if (process.argv.includes('--mcp-stdio')) {
   // Reads x-workspace and x-gitea-user headers. When a user is present, the
   // workspace is resolved under WORKSPACES_BASE_DIR/<user>/<wsName> so each
   // user's workspaces are fully isolated at the filesystem level.
-  app.use((req, res, next) => {
+  //
+  // Allowlist: only accepts a resolved path that contains manifest.json —
+  // a positive check that it is a real Epoch workspace, not just any directory
+  // that happens to pass the name pattern.
+  app.use(async (req, res, next) => {
     const wsName = req.headers['x-workspace'] as string | undefined;
     const user   = req.headers['x-gitea-user'] as string | undefined;
     if (wsName && /^[a-zA-Z0-9_-]+$/.test(wsName)) {
       const userSeg = (user && /^[a-zA-Z0-9_.-]+$/.test(user)) ? user : '';
       const parent  = userSeg ? path.join(WORKSPACES_BASE_DIR, userSeg) : WORKSPACES_BASE_DIR;
       const resolved = path.resolve(path.join(parent, wsName));
-      // Guard: resolved path must be strictly inside WORKSPACES_BASE_DIR
+      // Guard 1: resolved path must be strictly inside WORKSPACES_BASE_DIR
       if (resolved.startsWith(path.resolve(WORKSPACES_BASE_DIR) + path.sep)) {
-        res.locals['workspaceDir'] = resolved;
+        // Guard 2: positive allowlist — must be a real Epoch workspace
+        try {
+          await access(path.join(resolved, 'manifest.json'));
+          res.locals['workspaceDir'] = resolved;
+        } catch { /* not a valid workspace — fall through to default */ }
       }
     }
     next();

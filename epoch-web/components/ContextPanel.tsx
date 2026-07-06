@@ -2,14 +2,13 @@
 
 interface Props {
   compiling: boolean;
-  compilingWorkspace: boolean;
   pdfUrl: string | null;
   compileError: string | null;
   latex: string;
+  selectedPath: string | null;
   nodeStatus: string;
   nodeTags: string[];
   onCompile: () => void;
-  onCompileWorkspace: () => void;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -20,9 +19,18 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function ContextPanel({
-  compiling, compilingWorkspace, pdfUrl, compileError, latex,
-  nodeStatus, nodeTags, onCompile, onCompileWorkspace,
+  compiling, pdfUrl, compileError, latex, selectedPath, nodeStatus, nodeTags, onCompile,
 }: Props) {
+  const hasNode = !!selectedPath;
+  const hasLatex = !!latex.trim();
+  // Disabled only when a node is open but its content is empty
+  const btnDisabled = compiling || (hasNode && !hasLatex);
+  const btnLabel = compiling
+    ? 'Compiling…'
+    : hasLatex
+    ? 'Compile PDF'
+    : 'Compile All Nodes';
+
   return (
     <div className="context-panel">
       {/* Compile section */}
@@ -31,12 +39,12 @@ export default function ContextPanel({
         <button
           className="primary cp-compile-btn"
           onClick={onCompile}
-          disabled={compiling || !latex.trim()}
+          disabled={btnDisabled}
         >
           <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
             <path d="M3 3.5a.5.5 0 0 1 .757-.429l10 5.5a.5.5 0 0 1 0 .858l-10 5.5A.5.5 0 0 1 3 14.5v-11z"/>
           </svg>
-          {compiling ? 'Compiling…' : 'Compile PDF'}
+          {btnLabel}
         </button>
         {pdfUrl && !compileError && (
           <div className="cp-status ok">✓ PDF ready</div>
@@ -44,14 +52,6 @@ export default function ContextPanel({
         {compileError && (
           <div className="cp-error">{compileError}</div>
         )}
-        <button
-          className="cp-ws-btn"
-          onClick={onCompileWorkspace}
-          disabled={compilingWorkspace}
-          title="Compile all nodes into a single PDF"
-        >
-          {compilingWorkspace ? 'Compiling workspace…' : '⬇ All Nodes PDF'}
-        </button>
       </div>
 
       {/* Status */}
@@ -117,19 +117,6 @@ export default function ContextPanel({
           word-break: break-word;
           line-height: 1.4;
         }
-        .cp-ws-btn {
-          background: var(--surface2, #313244);
-          border: 1px solid var(--border, #45475a);
-          color: var(--text-sub, #a6adc8);
-          border-radius: 4px;
-          padding: 4px 8px;
-          font-size: 11px;
-          cursor: pointer;
-          text-align: left;
-          transition: color 0.1s;
-        }
-        .cp-ws-btn:hover:not(:disabled) { color: var(--text, #cdd6f4); }
-        .cp-ws-btn:disabled { opacity: 0.45; cursor: not-allowed; }
         .cp-tags {
           display: flex;
           flex-wrap: wrap;

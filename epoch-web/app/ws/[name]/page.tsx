@@ -14,6 +14,8 @@ import {
   createNode,
   compileLatex,
   compileWorkspacePdf,
+  getCachedNodePdf,
+  getCachedWorkspacePdf,
 } from '@/lib/api';
 import type { NodeSummary, ValidationPathEntry } from '@/lib/api';
 import type { LayoutMode, ContentTab } from '@/layouts/types';
@@ -48,7 +50,6 @@ export default function WorkspacePage() {
   // Compile
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [compiling, setCompiling] = useState(false);
-  const [compilingWorkspace, setCompilingWorkspace] = useState(false);
   const [compileError, setCompileError] = useState<string | null>(null);
   const pdfUrlRef = useRef<string | null>(null);
 
@@ -65,6 +66,16 @@ export default function WorkspacePage() {
     didAutoSelect.current = false;
     getManifest().then((m) => setWorkspaceName(m.name)).catch(() => {});
     loadNodes();
+    // Try to load a previously compiled workspace PDF when entering at the workspace level
+    const nodeParam = new URLSearchParams(window.location.search).get('node');
+    if (!nodeParam) {
+      getCachedWorkspacePdf().then((blob) => {
+        if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current);
+        const url = URL.createObjectURL(blob);
+        pdfUrlRef.current = url;
+        setPdfUrl(url);
+      }).catch(() => {});
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [name]);
 
@@ -92,21 +103,34 @@ export default function WorkspacePage() {
     }
   }
 
-  async function selectNode(path: string) {
-    setSelectedPath(path);
+  async function selectNode(nodePath: string) {
+    setSelectedPath(nodePath);
     setLatex('');
     setSaveStatus('saved');
+    // Clear stale PDF from the previous node
+    if (pdfUrlRef.current) { URL.revokeObjectURL(pdfUrlRef.current); pdfUrlRef.current = null; }
+    setPdfUrl(null);
+    setCompileError(null);
     // Reflect selection in the URL so the link is shareable / browser back works
-    router.replace(`/ws/${name}?node=${encodeURIComponent(path)}`, { scroll: false });
-    try {
-      const detail = await getNode(path);
-      setLatex(detail.latex ?? '');
-      setNodeTitle(detail.node.title ?? path);
-      setNodeStatus(detail.node.status ?? 'Sketch');
-      setNodeDescription(detail.node.description ?? '');
-      setNodeTags(detail.node.tags ?? []);
-      setNodeValidationPath(detail.node.validationPath ?? []);
-    } catch {
+    router.replace(`/ws/${name}?node=${encodeURIComponent(nodePath)}`, { scroll: false });
+    // Load node content and cached PDF in parallel
+    const [detail] = await Promise.allSettled([
+      getNode(nodePath),
+      getCachedNodePdf(nodePath).then((blob) => {
+        if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current);
+        const url = URL.createObjectURL(blob);
+        pdfUrlRef.current = url;
+        setPdfUrl(url);
+      }),
+    ]);
+    if (detail.status === 'fulfilled') {
+      setLatex(detail.value.latex ?? '');
+      setNodeTitle(detail.value.node.title ?? nodePath);
+      setNodeStatus(detail.value.node.status ?? 'Sketch');
+      setNodeDescription(detail.value.node.description ?? '');
+      setNodeTags(detail.value.node.tags ?? []);
+      setNodeValidationPath(detail.value.node.validationPath ?? []);
+    } else {
       setLatex('% Failed to load node content');
     }
   }
@@ -123,42 +147,29 @@ export default function WorkspacePage() {
   }, [selectedPath]);
 
   const handleCompile = useCallback(async () => {
-    if (!latex.trim()) return;
     setCompiling(true);
     setCompileError(null);
     try {
-      const blob = await compileLatex(latex, selectedPath ?? undefined);
+      let blob: Blob;
+      if (selectedPath && latex.trim()) {
+        // Compile the current node's LaTeX fragment
+        blob = await compileLatex(latex, selectedPath);
+        loadNodes(); // refresh so thumbnail appears in DAG
+      } else {
+        // No node selected (or empty) — compile the full workspace into one PDF
+        blob = await compileWorkspacePdf();
+      }
       if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current);
       const url = URL.createObjectURL(blob);
       pdfUrlRef.current = url;
       setPdfUrl(url);
       setContentTab('pdf');
-      // Refresh nodes so thumbnail appears in the DAG
-      loadNodes();
     } catch (err) {
       setCompileError(err instanceof Error ? err.message : String(err));
     } finally {
       setCompiling(false);
     }
   }, [latex, selectedPath]);  // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleCompileWorkspace = useCallback(async () => {
-    setCompilingWorkspace(true);
-    try {
-      const blob = await compileWorkspacePdf();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${name}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      // Surface the error in the compile error field
-      setCompileError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setCompilingWorkspace(false);
-    }
-  }, [name]);
 
   function handleGoWorkspace() {
     setSelectedPath(null);
@@ -168,9 +179,16 @@ export default function WorkspacePage() {
     setNodeTags([]);
     setNodeValidationPath([]);
     setLatex('');
-    setPdfUrl(null);
     if (pdfUrlRef.current) { URL.revokeObjectURL(pdfUrlRef.current); pdfUrlRef.current = null; }
+    setPdfUrl(null);
     router.replace(`/ws/${name}`, { scroll: false });
+    // Reload cached workspace PDF
+    getCachedWorkspacePdf().then((blob) => {
+      if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current);
+      const url = URL.createObjectURL(blob);
+      pdfUrlRef.current = url;
+      setPdfUrl(url);
+    }).catch(() => {});
   }
 
   async function handleCreate(parentPath: string, title: string) {
@@ -233,7 +251,6 @@ export default function WorkspacePage() {
     saveStatus,
     loadError,
     compiling,
-    compilingWorkspace,
     pdfUrl,
     compileError,
     layoutMode,
@@ -247,7 +264,6 @@ export default function WorkspacePage() {
     onLatexChange: (v: string) => { setLatex(v); setSaveStatus('unsaved'); },
     onSave: handleSave,
     onCompile: handleCompile,
-    onCompileWorkspace: handleCompileWorkspace,
     onSetContentTab: setContentTab,
     onTitleChange: handleTitleChange,
     onStatusChange: handleStatusChange,
