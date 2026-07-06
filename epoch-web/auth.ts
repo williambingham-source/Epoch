@@ -32,6 +32,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   ],
   callbacks: {
+    authorized({ auth }) {
+      // Return true to allow, false to redirect to sign-in
+      return !!auth?.user;
+    },
     jwt({ token, account, profile }) {
       if (account?.access_token) {
         token['accessToken'] = account.access_token;
