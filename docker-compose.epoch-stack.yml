@@ -1,4 +1,4 @@
-# Full Epoch stack: Gitea + Excalidraw + Bridge + Ollama
+﻿# Full Epoch stack: Gitea + Excalidraw + Bridge + Ollama
 # Usage:
 #   .\start-epoch.ps1                          (uses .env for config)
 #   .\start-epoch.ps1 -Down                    (stop everything)
@@ -81,11 +81,19 @@ services:
       # host.docker.internal reaches the locally-running bridge (Docker containers
       # have no outbound internet, so the bridge runs on the host instead).
       - BRIDGE_URL=http://host.docker.internal:3002
+      # next-auth / Gitea OAuth
+      - NEXTAUTH_URL=http://127.0.0.1:3003
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - GITEA_CLIENT_ID=${GITEA_CLIENT_ID}
+      - GITEA_CLIENT_SECRET=${GITEA_CLIENT_SECRET}
+      - GITEA_URL=${GITEA_URL:-http://localhost:3000}
+      # Server-side URL for token exchange â€” epoch-web reaches Gitea via Docker network
+      - GITEA_INTERNAL_URL=http://host.docker.internal:3000
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:3003"]
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3003"]
       interval: 15s
       timeout: 5s
       retries: 5

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession, signOut } from 'next-auth/react';
 import {
   listWorkspaces,
   createWorkspace,
@@ -30,6 +31,7 @@ type SyncState = { busy: boolean; result: SyncResult | null };
 
 export default function WorkspaceHome() {
   const router = useRouter();
+  const { data: session } = useSession();
 
   // Local workspaces
   const [workspaces, setWorkspaces] = useState<WorkspaceSummary[]>([]);
@@ -150,9 +152,20 @@ export default function WorkspaceHome() {
           <span className="wh-logo-mark">⬡</span>
           <span className="wh-logo-text">Epoch</span>
         </div>
-        <button className="wh-new-btn" onClick={() => setCreating(true)}>
-          + New Workspace
-        </button>
+        <div className="wh-header-right">
+          {session?.user && (
+            <div className="wh-user">
+              {session.user.image && (
+                <img src={session.user.image} alt="" className="wh-avatar" />
+              )}
+              <span className="wh-user-name">{session.user.name}</span>
+              <button className="wh-signout" onClick={() => signOut()}>Sign out</button>
+            </div>
+          )}
+          <button className="wh-new-btn" onClick={() => setCreating(true)}>
+            + New Workspace
+          </button>
+        </div>
       </div>
 
       <div className="wh-body">
@@ -409,6 +422,20 @@ export default function WorkspaceHome() {
           transition: opacity 0.12s;
         }
         .wh-new-btn:hover { opacity: 0.88; }
+        .wh-header-right { display: flex; align-items: center; gap: 12px; }
+        .wh-user { display: flex; align-items: center; gap: 8px; }
+        .wh-avatar { width: 24px; height: 24px; border-radius: 50%; }
+        .wh-user-name { font-size: 13px; color: var(--text-sub, #a6adc8); }
+        .wh-signout {
+          background: none;
+          border: 1px solid var(--border, #45475a);
+          color: var(--text-muted, #6c7086);
+          border-radius: 4px;
+          padding: 2px 8px;
+          font-size: 11px;
+          cursor: pointer;
+        }
+        .wh-signout:hover { color: var(--text, #cdd6f4); }
 
         .wh-body {
           flex: 1;
