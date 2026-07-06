@@ -2,12 +2,14 @@
 
 interface Props {
   compiling: boolean;
+  compilingWorkspace: boolean;
   pdfUrl: string | null;
   compileError: string | null;
   latex: string;
   nodeStatus: string;
   nodeTags: string[];
   onCompile: () => void;
+  onCompileWorkspace: () => void;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -18,7 +20,8 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function ContextPanel({
-  compiling, pdfUrl, compileError, latex, nodeStatus, nodeTags, onCompile,
+  compiling, compilingWorkspace, pdfUrl, compileError, latex,
+  nodeStatus, nodeTags, onCompile, onCompileWorkspace,
 }: Props) {
   return (
     <div className="context-panel">
@@ -41,6 +44,14 @@ export default function ContextPanel({
         {compileError && (
           <div className="cp-error">{compileError}</div>
         )}
+        <button
+          className="cp-ws-btn"
+          onClick={onCompileWorkspace}
+          disabled={compilingWorkspace}
+          title="Compile all nodes into a single PDF"
+        >
+          {compilingWorkspace ? 'Compiling workspace…' : '⬇ All Nodes PDF'}
+        </button>
       </div>
 
       {/* Status */}
@@ -106,6 +117,19 @@ export default function ContextPanel({
           word-break: break-word;
           line-height: 1.4;
         }
+        .cp-ws-btn {
+          background: var(--surface2, #313244);
+          border: 1px solid var(--border, #45475a);
+          color: var(--text-sub, #a6adc8);
+          border-radius: 4px;
+          padding: 4px 8px;
+          font-size: 11px;
+          cursor: pointer;
+          text-align: left;
+          transition: color 0.1s;
+        }
+        .cp-ws-btn:hover:not(:disabled) { color: var(--text, #cdd6f4); }
+        .cp-ws-btn:disabled { opacity: 0.45; cursor: not-allowed; }
         .cp-tags {
           display: flex;
           flex-wrap: wrap;

@@ -1,10 +1,33 @@
 import { Router } from 'express';
 import * as path from 'path';
 import * as fs from 'fs/promises';
-import { compileFragment } from '../../tools/latex-compiler.js';
+import { compileFragment, compileWorkspace } from '../../tools/latex-compiler.js';
 
 export function pdfRouter(workspaceDir: string): Router {
   const router = Router();
+
+  // POST /api/pdf/workspace — compile all nodes in topological order, return full PDF.
+  router.post('/workspace', async (req, res) => {
+    try {
+      const result = await compileWorkspace({ workspaceDir });
+
+      if (!result.success || !result.outputPath) {
+        res.status(422).json({ error: result.errors.join(' | ') || 'Compilation failed' });
+        return;
+      }
+
+      const pdfBytes = await fs.readFile(result.outputPath);
+      // Clean up the output file after sending
+      fs.unlink(result.outputPath).catch(() => {});
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="workspace.pdf"`);
+      res.setHeader('Content-Length', pdfBytes.length);
+      res.send(pdfBytes);
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
 
   // GET /api/pdf/:encodedPath — compile a node's content.tex and return PDF bytes
   router.get('/:encodedPath', async (req, res) => {

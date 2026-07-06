@@ -18,6 +18,7 @@ export default function AnalyticalLayout(p: LayoutProps) {
           workspaceName={p.workspaceName}
           selectedPath={p.selectedPath}
           nodeTitle={p.nodeTitle}
+          onGoWorkspace={p.onGoWorkspace}
         />
         <LayoutTabs mode={p.layoutMode} onChange={p.onSetLayout} />
       </div>
@@ -76,12 +77,14 @@ export default function AnalyticalLayout(p: LayoutProps) {
 
         <ContextPanel
           compiling={p.compiling}
+          compilingWorkspace={p.compilingWorkspace}
           pdfUrl={p.pdfUrl}
           compileError={p.compileError}
           latex={p.latex}
           nodeStatus={p.nodeStatus}
           nodeTags={p.nodeTags}
           onCompile={p.onCompile}
+          onCompileWorkspace={p.onCompileWorkspace}
         />
       </div>
 

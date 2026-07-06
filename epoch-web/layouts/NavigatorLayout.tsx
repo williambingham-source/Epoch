@@ -23,7 +23,7 @@ export default function NavigatorLayout(p: LayoutProps) {
     <div className="lc-root">
       {/* Topbar */}
       <div className="lc-topbar">
-        <BreadcrumbBar workspaceName={p.workspaceName} selectedPath={null} nodeTitle="" />
+        <BreadcrumbBar workspaceName={p.workspaceName} selectedPath={null} nodeTitle="" onGoWorkspace={p.onGoWorkspace} />
         <div className="lc-filters">
           {FILTERS.map((f) => (
             <button

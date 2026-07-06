@@ -23,6 +23,7 @@ export default function FocusLayout(p: LayoutProps) {
           workspaceName={p.workspaceName}
           selectedPath={p.selectedPath}
           nodeTitle={p.nodeTitle}
+          onGoWorkspace={p.onGoWorkspace}
         />
         <div className="lb-topbar-right">
           {p.compiling && <span className="lb-compiling-badge">Compiling…</span>}

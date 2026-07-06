@@ -13,6 +13,7 @@ import {
   updateNode,
   createNode,
   compileLatex,
+  compileWorkspacePdf,
 } from '@/lib/api';
 import type { NodeSummary, ValidationPathEntry } from '@/lib/api';
 import type { LayoutMode, ContentTab } from '@/layouts/types';
@@ -47,6 +48,7 @@ export default function WorkspacePage() {
   // Compile
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [compiling, setCompiling] = useState(false);
+  const [compilingWorkspace, setCompilingWorkspace] = useState(false);
   const [compileError, setCompileError] = useState<string | null>(null);
   const pdfUrlRef = useRef<string | null>(null);
 
@@ -125,18 +127,51 @@ export default function WorkspacePage() {
     setCompiling(true);
     setCompileError(null);
     try {
-      const blob = await compileLatex(latex);
+      const blob = await compileLatex(latex, selectedPath ?? undefined);
       if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current);
       const url = URL.createObjectURL(blob);
       pdfUrlRef.current = url;
       setPdfUrl(url);
       setContentTab('pdf');
+      // Refresh nodes so thumbnail appears in the DAG
+      loadNodes();
     } catch (err) {
       setCompileError(err instanceof Error ? err.message : String(err));
     } finally {
       setCompiling(false);
     }
-  }, [latex]);
+  }, [latex, selectedPath]);  // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleCompileWorkspace = useCallback(async () => {
+    setCompilingWorkspace(true);
+    try {
+      const blob = await compileWorkspacePdf();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${name}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      // Surface the error in the compile error field
+      setCompileError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setCompilingWorkspace(false);
+    }
+  }, [name]);
+
+  function handleGoWorkspace() {
+    setSelectedPath(null);
+    setNodeTitle('');
+    setNodeStatus('Sketch');
+    setNodeDescription('');
+    setNodeTags([]);
+    setNodeValidationPath([]);
+    setLatex('');
+    setPdfUrl(null);
+    if (pdfUrlRef.current) { URL.revokeObjectURL(pdfUrlRef.current); pdfUrlRef.current = null; }
+    router.replace(`/ws/${name}`, { scroll: false });
+  }
 
   async function handleCreate(parentPath: string, title: string) {
     const created = await createNode(parentPath, title);
@@ -198,6 +233,7 @@ export default function WorkspacePage() {
     saveStatus,
     loadError,
     compiling,
+    compilingWorkspace,
     pdfUrl,
     compileError,
     layoutMode,
@@ -211,6 +247,7 @@ export default function WorkspacePage() {
     onLatexChange: (v: string) => { setLatex(v); setSaveStatus('unsaved'); },
     onSave: handleSave,
     onCompile: handleCompile,
+    onCompileWorkspace: handleCompileWorkspace,
     onSetContentTab: setContentTab,
     onTitleChange: handleTitleChange,
     onStatusChange: handleStatusChange,
@@ -220,6 +257,7 @@ export default function WorkspacePage() {
     onSetLayout: setLayoutMode,
     onTogglePanel: () => setPanelOpen((v) => !v),
     onSetSidebarMode: setSidebarMode,
+    onGoWorkspace: handleGoWorkspace,
   };
 
   if (layoutMode === 'focus') return <FocusLayout {...lp} />;

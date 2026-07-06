@@ -306,17 +306,29 @@ export async function getNodeLog(nodePath: string, limit = 50): Promise<CommitEn
 // Compile (workspace-scoped)
 // ---------------------------------------------------------------------------
 
-export async function compileLatex(latex: string): Promise<Blob> {
+// nodePath: when provided, the bridge saves a thumbnail PNG after compile.
+export async function compileLatex(latex: string, nodePath?: string): Promise<Blob> {
   const res = await fetch(`${_apiBase}/compile`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ latex }),
+    body: JSON.stringify({ latex, nodePath }),
   });
   if (!res.ok) {
     const err = (await res.json().catch(() => ({ error: `HTTP ${res.status}` }))) as {
       error?: string;
     };
     throw new Error(err.error ?? `Compile failed: ${res.status}`);
+  }
+  return res.blob();
+}
+
+export async function compileWorkspacePdf(): Promise<Blob> {
+  const res = await fetch(`${_apiBase}/pdf/workspace`, { method: 'POST' });
+  if (!res.ok) {
+    const err = (await res.json().catch(() => ({ error: `HTTP ${res.status}` }))) as {
+      error?: string;
+    };
+    throw new Error(err.error ?? `Workspace compile failed: ${res.status}`);
   }
   return res.blob();
 }

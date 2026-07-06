@@ -11,6 +11,7 @@ export default function PdfPanel({ pdfUrl, compiling, error }: Props) {
     <div className="pdf-panel">
       {pdfUrl ? (
         <iframe
+          key={pdfUrl}
           className="pdf-iframe"
           src={pdfUrl}
           title="Compiled PDF"
