@@ -254,9 +254,10 @@ Different people log in with their own Gitea credentials and see only their repo
 - ✅ **Task 3 — Thread OAuth token to bridge** — Next.js API proxy calls `auth()` server-side and injects `x-gitea-token: <Bearer>` + `x-gitea-user: <login>` headers; bridge Gitea helpers use Bearer auth when token is present; token never reaches the browser; `GITEA_URL` (browser-facing) vs `GITEA_INTERNAL_URL` (Docker server-side) split for OAuth redirect vs token exchange
 - ✅ **Task 4 — Per-user workspace isolation** — bridge workspace middleware resolves `WORKSPACES_BASE_DIR/<user>/<wsName>` from `x-gitea-user` header; path-traversal guard against root base dir; `workspacesRouter(getBaseDir)` factory uses per-request dynamic resolution; user dirs created on demand; compile fix: removed `HOST_WORKSPACE_DIR` env override in `compileFragment` (bridge always runs on host; old override caused Docker volume mismatch after isolation)
 
-### In progress
+- ✅ **Task 5 — User settings page** — `/settings` page with Anthropic/OpenAI key inputs (AES-256-GCM encrypted at rest, keyed on `NEXTAUTH_SECRET`; keys masked in GET response, never sent to browser); vision provider dropdown persisted per user; `⚙` gear link in WorkspaceHome header; bridge `convert` route uses per-user key + provider pref when `x-gitea-user` is present, falls back to server env
 
-- 🔲 **Task 5 — User settings page** — personal Anthropic/OpenAI API keys; stored encrypted server-side; vision provider selector per user; keys never sent to browser
+### Remaining
+
 - 🔲 **Bridge allowlist** — replace "any valid dir name under base dir" policy with an explicit per-user positive-check layer (path-traversal guard already in place)
 
 ### Auth
