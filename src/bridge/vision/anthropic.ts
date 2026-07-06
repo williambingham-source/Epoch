@@ -7,8 +7,8 @@ export class AnthropicVisionProvider implements VisionProvider {
   private client: Anthropic;
   private model: string;
 
-  constructor(model?: string) {
-    this.client = new Anthropic({ apiKey: process.env['ANTHROPIC_API_KEY'] });
+  constructor(model?: string, apiKey?: string) {
+    this.client = new Anthropic({ apiKey: apiKey ?? process.env['ANTHROPIC_API_KEY'] });
     this.model = model || process.env['VISION_MODEL'] || 'claude-opus-4-8';
   }
 

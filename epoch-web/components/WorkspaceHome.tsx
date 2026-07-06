@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useSession, signOut } from 'next-auth/react';
 import {
   listWorkspaces,
@@ -159,6 +160,7 @@ export default function WorkspaceHome() {
                 <img src={session.user.image} alt="" className="wh-avatar" />
               )}
               <span className="wh-user-name">{session.user.name}</span>
+              <Link href="/settings" className="wh-settings-link" title="Settings">⚙</Link>
               <button className="wh-signout" onClick={() => signOut()}>Sign out</button>
             </div>
           )}
@@ -426,6 +428,14 @@ export default function WorkspaceHome() {
         .wh-user { display: flex; align-items: center; gap: 8px; }
         .wh-avatar { width: 24px; height: 24px; border-radius: 50%; }
         .wh-user-name { font-size: 13px; color: var(--text-sub, #a6adc8); }
+        .wh-settings-link {
+          color: var(--text-muted, #6c7086);
+          font-size: 16px;
+          text-decoration: none;
+          line-height: 1;
+          transition: color 0.1s;
+        }
+        .wh-settings-link:hover { color: var(--text, #cdd6f4); }
         .wh-signout {
           background: none;
           border: 1px solid var(--border, #45475a);

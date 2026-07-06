@@ -25,15 +25,15 @@ Given an image of handwritten or drawn mathematical content:
 6. Preserve the logical structure of what was drawn (proof steps, cases, etc.).
 7. Return nothing except the LaTeX.`;
 
-export async function createProvider(name: ProviderName, model?: string): Promise<VisionProvider> {
+export async function createProvider(name: ProviderName, model?: string, apiKey?: string): Promise<VisionProvider> {
   switch (name) {
     case 'anthropic': {
       const { AnthropicVisionProvider } = await import('./anthropic.js');
-      return new AnthropicVisionProvider(model);
+      return new AnthropicVisionProvider(model, apiKey);
     }
     case 'openai': {
       const { OpenAIVisionProvider } = await import('./openai.js');
-      return new OpenAIVisionProvider(model);
+      return new OpenAIVisionProvider(model, apiKey);
     }
     case 'gemini': {
       const { GeminiVisionProvider } = await import('./gemini.js');

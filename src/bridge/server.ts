@@ -24,6 +24,7 @@ import { convertRouter } from './routes/convert.js';
 import { pdfRouter } from './routes/pdf.js';
 import { providersRouter } from './routes/providers.js';
 import { workspacesRouter } from './routes/workspaces.js';
+import { settingsRouter } from './routes/settings.js';
 import { createBridgeMcpServer, startStdioMcpServer } from './mcp/index.js';
 
 const WORKSPACE_DIR = process.env['WORKSPACE_DIR'];
@@ -95,6 +96,9 @@ if (process.argv.includes('--mcp-stdio')) {
       provider: process.env['VISION_PROVIDER'] ?? 'anthropic',
     });
   });
+
+  // User settings (API keys, vision provider preference) — keyed by x-gitea-user
+  app.use('/api/settings', settingsRouter(WORKSPACES_BASE_DIR));
 
   // Workspace management — base dir is per-user when x-gitea-user is present
   app.use('/api/workspaces', workspacesRouter((req) => {
