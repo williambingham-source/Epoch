@@ -312,9 +312,7 @@ export async function compileFragment(
   await fs.writeFile(texPath, full, 'utf-8');
 
   const dockerBin = await resolveDockerBin();
-  // When running inside Docker with socket mounting, the volume path must be
-  // the host path. HOST_WORKSPACE_DIR overrides workspaceDir for that argument.
-  const volumeSrc = process.env['HOST_WORKSPACE_DIR'] ?? workspaceDir;
+  const volumeSrc = workspaceDir;
 
   try {
     for (let pass = 1; pass <= 2; pass++) {
