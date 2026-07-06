@@ -243,9 +243,21 @@ Each workspace is a Gitea repo. The web app calls the Gitea API (`http://gitea:3
 ---
 
 ## Phase 3 — Multi-user Auth
-*~6 weeks · Gitea OAuth, per-user workspaces*
+*~6 weeks · Gitea OAuth, per-user workspaces · **in progress (2026-07-05)***
 
 Different people log in with their own Gitea credentials and see only their repos as workspaces.
+
+### Completed (2026-07-05)
+
+- ✅ **Task 1 — Gitea OAuth app registration** — confidential client created in Gitea admin; `GITEA_CLIENT_ID` + `GITEA_CLIENT_SECRET` in `.env` and Docker compose environment
+- ✅ **Task 2 — next-auth wiring** — `epoch-web/auth.ts`: custom Gitea OAuth provider; `jwt` + `session` callbacks thread `accessToken` and `login`; `authorized` callback blocks unauthenticated requests; `trustHost: true` for self-hosted; `NEXTAUTH_URL`, `NEXTAUTH_SECRET` in env; `epoch-web/middleware.ts` protects `/ws/:path*`; `epoch-web/components/AuthProvider.tsx` wraps layout; `WorkspaceHome` shows avatar + Sign Out from `useSession`/`signOut`
+- ✅ **Task 3 — Thread OAuth token to bridge** — Next.js API proxy calls `auth()` server-side and injects `x-gitea-token: <Bearer>` + `x-gitea-user: <login>` headers; bridge Gitea helpers use Bearer auth when token is present; token never reaches the browser; `GITEA_URL` (browser-facing) vs `GITEA_INTERNAL_URL` (Docker server-side) split for OAuth redirect vs token exchange
+- ✅ **Task 4 — Per-user workspace isolation** — bridge workspace middleware resolves `WORKSPACES_BASE_DIR/<user>/<wsName>` from `x-gitea-user` header; path-traversal guard against root base dir; `workspacesRouter(getBaseDir)` factory uses per-request dynamic resolution; user dirs created on demand; compile fix: removed `HOST_WORKSPACE_DIR` env override in `compileFragment` (bridge always runs on host; old override caused Docker volume mismatch after isolation)
+
+### In progress
+
+- 🔲 **Task 5 — User settings page** — personal Anthropic/OpenAI API keys; stored encrypted server-side; vision provider selector per user; keys never sent to browser
+- 🔲 **Bridge allowlist** — replace "any valid dir name under base dir" policy with an explicit per-user positive-check layer (path-traversal guard already in place)
 
 ### Auth
 
@@ -256,8 +268,8 @@ Different people log in with their own Gitea credentials and see only their repo
 ### Workspace isolation
 
 - Each user sees only repos owned by their Gitea account
-- Workspace paths resolved from Gitea clone URLs, not raw filesystem paths
-- Server clones repos to a per-user working directory on first access; periodic `git pull` keeps it fresh
+- Workspace paths resolved under `WORKSPACES_BASE_DIR/<user>/` — per-user isolation at filesystem level
+- Multiple users can collaborate on the same workspace by sharing a Gitea repo (both clone it; isolation is per login, not per repo)
 - **Bridge allowlist** — replace the current "any valid dir name under base dir" policy with an explicit per-user allowlist of resolved paths; path-traversal guard already in place, this adds a positive-check layer
 
 ### Vision API keys
