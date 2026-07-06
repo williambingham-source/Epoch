@@ -17,6 +17,7 @@ async function proxy(
   const headers: Record<string, string> = { 'x-workspace': workspaceName };
   if (hasBody) headers['content-type'] = req.headers.get('content-type') ?? 'application/json';
   if (session?.accessToken) headers['x-gitea-token'] = session.accessToken;
+  if (session?.user?.login) headers['x-gitea-user'] = session.user.login;
 
   const upstream = await fetch(target, {
     method: req.method,

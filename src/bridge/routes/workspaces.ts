@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request } from 'express';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import { initWorkspace, readManifest, listNodes } from '../../core/workspace.js';
@@ -64,13 +64,15 @@ function makeCloneUrl(repoName: string, token?: string | null): string {
 // Router factory
 // ---------------------------------------------------------------------------
 
-export function workspacesRouter(baseDir: string): Router {
+export function workspacesRouter(getBaseDir: (req: Request) => string): Router {
   const router = Router();
 
   // ── GET /api/workspaces ─────────────────────────────────────────────────
-  // List all valid local workspaces in baseDir.
-  router.get('/', async (_req, res) => {
+  // List all valid local workspaces in the user's base dir.
+  router.get('/', async (req, res) => {
+    const baseDir = getBaseDir(req);
     try {
+      await fs.mkdir(baseDir, { recursive: true });
       const entries = await fs.readdir(baseDir, { withFileTypes: true });
       const workspaces: WorkspaceSummary[] = [];
 
@@ -115,6 +117,7 @@ export function workspacesRouter(baseDir: string): Router {
   // ── GET /api/workspaces/gitea ────────────────────────────────────────────
   // List Gitea repos, flagged as cloned/not cloned against the local base dir.
   router.get('/gitea', async (req, res) => {
+    const baseDir = getBaseDir(req);
     const token = req.headers['x-gitea-token'] as string | undefined;
     try {
       const gRes = await giteaFetch('/user/repos?limit=50&sort=newest', token);
@@ -157,8 +160,10 @@ export function workspacesRouter(baseDir: string): Router {
   // Create a new local workspace; optionally also creates a Gitea repo and
   // pushes the initial commit.
   router.post('/', async (req, res) => {
+    const baseDir = getBaseDir(req);
     const token = req.headers['x-gitea-token'] as string | undefined;
     try {
+      await fs.mkdir(baseDir, { recursive: true });
       const { name, displayName, description, authorName, authorEmail, createGiteaRepo } =
         req.body as {
           name: string;
@@ -226,8 +231,10 @@ export function workspacesRouter(baseDir: string): Router {
   // ── POST /api/workspaces/:name/clone ────────────────────────────────────
   // Clone a Gitea repo into baseDir.
   router.post('/:name/clone', async (req, res) => {
+    const baseDir = getBaseDir(req);
     const { name } = req.params as { name: string };
     const token = req.headers['x-gitea-token'] as string | undefined;
+    await fs.mkdir(baseDir, { recursive: true });
 
     if (!name || !/^[a-zA-Z0-9_-]+$/.test(name)) {
       res.status(400).json({ error: 'Invalid workspace name' });
@@ -255,7 +262,7 @@ export function workspacesRouter(baseDir: string): Router {
   // Return git remote info (branch, ahead/behind) for a local workspace.
   router.get('/:name/remote', async (req, res) => {
     const { name } = req.params as { name: string };
-    const wsDir = path.join(baseDir, name);
+    const wsDir = path.join(getBaseDir(req), name);
     try {
       const info = await getRemoteInfo(wsDir);
       res.json(info);
@@ -267,7 +274,7 @@ export function workspacesRouter(baseDir: string): Router {
   // ── POST /api/workspaces/:name/push ─────────────────────────────────────
   router.post('/:name/push', async (req, res) => {
     const { name } = req.params as { name: string };
-    const wsDir = path.join(baseDir, name);
+    const wsDir = path.join(getBaseDir(req), name);
     try {
       const result = await pushWorkspace(wsDir);
       res.json(result);
@@ -279,7 +286,7 @@ export function workspacesRouter(baseDir: string): Router {
   // ── POST /api/workspaces/:name/pull ─────────────────────────────────────
   router.post('/:name/pull', async (req, res) => {
     const { name } = req.params as { name: string };
-    const wsDir = path.join(baseDir, name);
+    const wsDir = path.join(getBaseDir(req), name);
     try {
       const result = await pullWorkspace(wsDir);
       res.json(result);

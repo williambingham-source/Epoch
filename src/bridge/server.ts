@@ -52,15 +52,18 @@ if (process.argv.includes('--mcp-stdio')) {
   app.use(express.json({ limit: '50mb' }));
 
   // ── Workspace resolution middleware ──────────────────────────────────────
-  // Reads x-workspace header, validates the name, and stores the resolved
-  // absolute path in res.locals.workspaceDir for downstream routers.
+  // Reads x-workspace and x-gitea-user headers. When a user is present, the
+  // workspace is resolved under WORKSPACES_BASE_DIR/<user>/<wsName> so each
+  // user's workspaces are fully isolated at the filesystem level.
   app.use((req, res, next) => {
     const wsName = req.headers['x-workspace'] as string | undefined;
+    const user   = req.headers['x-gitea-user'] as string | undefined;
     if (wsName && /^[a-zA-Z0-9_-]+$/.test(wsName)) {
-      const resolved = path.resolve(path.join(WORKSPACES_BASE_DIR, wsName));
-      // Guard against path traversal
-      if (resolved.startsWith(path.resolve(WORKSPACES_BASE_DIR) + path.sep) ||
-          resolved === path.resolve(WORKSPACES_BASE_DIR)) {
+      const userSeg = (user && /^[a-zA-Z0-9_.-]+$/.test(user)) ? user : '';
+      const parent  = userSeg ? path.join(WORKSPACES_BASE_DIR, userSeg) : WORKSPACES_BASE_DIR;
+      const resolved = path.resolve(path.join(parent, wsName));
+      // Guard: resolved path must be strictly inside WORKSPACES_BASE_DIR
+      if (resolved.startsWith(path.resolve(WORKSPACES_BASE_DIR) + path.sep)) {
         res.locals['workspaceDir'] = resolved;
       }
     }
@@ -93,8 +96,14 @@ if (process.argv.includes('--mcp-stdio')) {
     });
   });
 
-  // Workspace management (not workspace-scoped — operates on the base dir)
-  app.use('/api/workspaces', workspacesRouter(WORKSPACES_BASE_DIR));
+  // Workspace management — base dir is per-user when x-gitea-user is present
+  app.use('/api/workspaces', workspacesRouter((req) => {
+    const user = req.headers['x-gitea-user'] as string | undefined;
+    if (user && /^[a-zA-Z0-9_.-]+$/.test(user)) {
+      return path.join(WORKSPACES_BASE_DIR, user);
+    }
+    return WORKSPACES_BASE_DIR;
+  }));
 
   // Workspace-scoped REST routes (resolved per-request via x-workspace header)
   app.use('/api/nodes', withWorkspace(nodesRouter));

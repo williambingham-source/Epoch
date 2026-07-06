@@ -13,6 +13,7 @@ async function proxy(req: NextRequest, pathSegments: string[]): Promise<Response
   const headers: Record<string, string> = {};
   if (hasBody) headers['content-type'] = req.headers.get('content-type') ?? 'application/json';
   if (session?.accessToken) headers['x-gitea-token'] = session.accessToken;
+  if (session?.user?.login) headers['x-gitea-user'] = session.user.login;
 
   const upstream = await fetch(target, {
     method: req.method,
