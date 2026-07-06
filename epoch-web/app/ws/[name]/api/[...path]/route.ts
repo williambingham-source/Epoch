@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { auth } from '@/auth';
 
 function bridgeUrl() {
   return process.env.BRIDGE_URL ?? 'http://localhost:3002';
@@ -9,16 +10,17 @@ async function proxy(
   workspaceName: string,
   pathSegments: string[],
 ): Promise<Response> {
+  const session = await auth();
   const target = `${bridgeUrl()}/api/${pathSegments.join('/')}${req.nextUrl.search}`;
   const hasBody = req.method !== 'GET' && req.method !== 'HEAD';
+
+  const headers: Record<string, string> = { 'x-workspace': workspaceName };
+  if (hasBody) headers['content-type'] = req.headers.get('content-type') ?? 'application/json';
+  if (session?.accessToken) headers['x-gitea-token'] = session.accessToken;
+
   const upstream = await fetch(target, {
     method: req.method,
-    headers: {
-      ...(hasBody
-        ? { 'content-type': req.headers.get('content-type') ?? 'application/json' }
-        : {}),
-      'x-workspace': workspaceName,
-    },
+    headers,
     body: hasBody ? await req.arrayBuffer() : undefined,
   });
   const body = await upstream.arrayBuffer();

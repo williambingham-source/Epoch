@@ -1,16 +1,22 @@
 import { NextRequest } from 'next/server';
+import { auth } from '@/auth';
 
-// Read at request time so the Docker env var is used, not whatever was set at build time.
 function bridgeUrl() {
   return process.env.BRIDGE_URL ?? 'http://localhost:3002';
 }
 
 async function proxy(req: NextRequest, pathSegments: string[]): Promise<Response> {
+  const session = await auth();
   const target = `${bridgeUrl()}/api/${pathSegments.join('/')}${req.nextUrl.search}`;
   const hasBody = req.method !== 'GET' && req.method !== 'HEAD';
+
+  const headers: Record<string, string> = {};
+  if (hasBody) headers['content-type'] = req.headers.get('content-type') ?? 'application/json';
+  if (session?.accessToken) headers['x-gitea-token'] = session.accessToken;
+
   const upstream = await fetch(target, {
     method: req.method,
-    headers: hasBody ? { 'content-type': req.headers.get('content-type') ?? 'application/json' } : undefined,
+    headers,
     body: hasBody ? await req.arrayBuffer() : undefined,
   });
   const body = await upstream.arrayBuffer();

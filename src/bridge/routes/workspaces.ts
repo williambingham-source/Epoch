@@ -34,23 +34,29 @@ function giteaConfig() {
   return { url, user, pass, auth };
 }
 
-async function giteaFetch(apiPath: string, init?: RequestInit): Promise<Response> {
+async function giteaFetch(apiPath: string, token?: string | null, init?: RequestInit): Promise<Response> {
   const { url, auth } = giteaConfig();
+  const authorization = token ? `Bearer ${token}` : `Basic ${auth}`;
   return fetch(`${url}/api/v1${apiPath}`, {
     ...init,
     headers: {
-      Authorization: `Basic ${auth}`,
+      Authorization: authorization,
       'Content-Type': 'application/json',
       ...(init?.headers as Record<string, string> | undefined),
     },
   });
 }
 
-function makeCloneUrl(repoName: string): string {
+function makeCloneUrl(repoName: string, token?: string | null): string {
   const { url, user, pass } = giteaConfig();
   const u = new URL(`${url}/${user}/${repoName}.git`);
-  u.username = user;
-  u.password = pass;
+  if (token) {
+    u.username = 'oauth2';
+    u.password = token;
+  } else {
+    u.username = user;
+    u.password = pass;
+  }
   return u.toString();
 }
 
@@ -108,9 +114,10 @@ export function workspacesRouter(baseDir: string): Router {
 
   // ── GET /api/workspaces/gitea ────────────────────────────────────────────
   // List Gitea repos, flagged as cloned/not cloned against the local base dir.
-  router.get('/gitea', async (_req, res) => {
+  router.get('/gitea', async (req, res) => {
+    const token = req.headers['x-gitea-token'] as string | undefined;
     try {
-      const gRes = await giteaFetch('/user/repos?limit=50&sort=newest');
+      const gRes = await giteaFetch('/user/repos?limit=50&sort=newest', token);
       if (!gRes.ok) {
         res.status(gRes.status).json({ error: `Gitea API error: ${gRes.status}` });
         return;
@@ -150,6 +157,7 @@ export function workspacesRouter(baseDir: string): Router {
   // Create a new local workspace; optionally also creates a Gitea repo and
   // pushes the initial commit.
   router.post('/', async (req, res) => {
+    const token = req.headers['x-gitea-token'] as string | undefined;
     try {
       const { name, displayName, description, authorName, authorEmail, createGiteaRepo } =
         req.body as {
@@ -183,7 +191,7 @@ export function workspacesRouter(baseDir: string): Router {
       if (createGiteaRepo) {
         try {
           // Create the Gitea repo
-          const gRes = await giteaFetch('/user/repos', {
+          const gRes = await giteaFetch('/user/repos', token, {
             method: 'POST',
             body: JSON.stringify({
               name,
@@ -196,7 +204,7 @@ export function workspacesRouter(baseDir: string): Router {
 
           if (gRes.ok) {
             // Wire up remote and push initial commit
-            const cloneUrl = makeCloneUrl(name);
+            const cloneUrl = makeCloneUrl(name, token);
             try {
               await runGit(['remote', 'add', 'origin', cloneUrl], wsDir, 5000);
               await runGit(['push', '-u', 'origin', 'HEAD'], wsDir, 30000);
@@ -219,6 +227,7 @@ export function workspacesRouter(baseDir: string): Router {
   // Clone a Gitea repo into baseDir.
   router.post('/:name/clone', async (req, res) => {
     const { name } = req.params as { name: string };
+    const token = req.headers['x-gitea-token'] as string | undefined;
 
     if (!name || !/^[a-zA-Z0-9_-]+$/.test(name)) {
       res.status(400).json({ error: 'Invalid workspace name' });
@@ -233,7 +242,7 @@ export function workspacesRouter(baseDir: string): Router {
     } catch {}
 
     try {
-      const cloneUrl = makeCloneUrl(name);
+      const cloneUrl = makeCloneUrl(name, token);
       await runGit(['clone', cloneUrl, name], baseDir, 60000);
       res.json({ name, ok: true });
     } catch (err: unknown) {
