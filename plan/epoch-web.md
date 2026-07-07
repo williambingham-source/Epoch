@@ -2,7 +2,7 @@
 
 A standalone web application replacing the VS Code extension dependency, with Monaco-based file management and multi-user workspace access via the existing bridge architecture.
 
-**Updated** · 2026-07-05 (git history) · 5 phases · ~12 months estimated
+**Updated** · 2026-07-06 · 5 phases · ~12 months estimated
 
 ---
 
@@ -285,38 +285,44 @@ Gitea already manages user accounts, repo permissions, and git credentials. Usin
 ---
 
 ## Phase 4 — Collaboration
-*Excalidraw library embed + canvas persistence + chat · scoped 2026-07-06*
+*Excalidraw library embed + canvas persistence + chat · **✅ complete (2026-07-06)***
 
-Focused scope: replace the Excalidraw iframe with the `@excalidraw/excalidraw` React library for full control, add per-node canvas persistence, real-time multiplayer on the canvas, and a workspace-scoped chat panel. Monaco/LaTeX editing stays single-user (last-write-wins via git).
+Replaced the Excalidraw iframe with the `@excalidraw/excalidraw` React library, added per-node canvas persistence, real-time multiplayer on the canvas, and a workspace-scoped chat panel.
 
-### Task 1 — Excalidraw library embed + persistence
+### ✅ Task 1 — Excalidraw library embed + persistence
 
-Replace `CanvasPanel.tsx` iframe with `@excalidraw/excalidraw` React component.
-
-**Bridge endpoints (nodes.ts):**
+**Bridge (`src/bridge/routes/nodes.ts`):**
 - `GET /api/nodes/:path/canvas` — reads `data/canvas.excalidraw` (JSON), 404 if none
 - `POST /api/nodes/:path/canvas` — writes `data/canvas.excalidraw`
 
 **epoch-web:**
-- Install `@excalidraw/excalidraw`
-- `CanvasPanel.tsx` — library embed; on node select: fetch canvas state and `initialData`; `onChange` debounced 2 s → POST to bridge; flush pending save on node switch/unmount
+- `@excalidraw/excalidraw` installed; `transpilePackages` in `next.config.mjs`; CSS imported globally in `layout.tsx`
+- `CanvasPanel.tsx` — dynamic import (SSR-safe); loads saved scene on node select (`collaborators` restored as `new Map()`); `onChange` debounced 2 s → POST; flush on node switch/unmount
+- `EpochPanel.tsx` — ink → LaTeX side panel (ported from Excalidraw app); accepts `api` prop; uses `getApiBase()` for all calls; `exportToBlob` → bridge `/convert` → preview PNG → replace on canvas or save to node
+- `CanvasErrorBoundary` catches Excalidraw crashes and renders an inline error message
 
-**Persistence format:** Excalidraw's native scene JSON (`{ elements, appState, files }`), plain text, git-trackable, stored at `<workspaceDir>/<nodePath>/data/canvas.excalidraw`.
+**Persistence format:** Excalidraw scene JSON (`{ elements, appState, files }`), plain text, git-trackable, at `<workspaceDir>/<nodePath>/data/canvas.excalidraw`.
 
-### Task 2 — Excalidraw multiplayer (Yjs)
+### ✅ Task 2 — Excalidraw multiplayer (Yjs)
 
-Add a `y-websocket` Docker service. Each node's canvas gets its own Yjs room.
+- **`collab/Dockerfile`** — `node:20-alpine`, installs `y-websocket@1`, exposes port 3004
+- **`docker-compose.epoch-stack.yml`** — `epoch-collab` service on port 3004
+- **`CanvasPanel.tsx`** — dynamically imports `yjs` + `y-websocket`; joins room `<workspace>/<nodePath>`; syncs elements via `Y.Map<string>` (JSON-serialised per element); `isRemoteUpdate` ref breaks `onChange ↔ observe` loop; graceful degradation if collab server unreachable
 
-- **Room ID:** `<user>/<workspace>/<nodePath>` — stable, unique per node
-- **`CanvasPanel.tsx`** — on mount, join Yjs room; sync Excalidraw scene via `Y.Map`; `onChange` updates Yjs + debounced persistence; remote Yjs update → `updateScene()`
-- **y-websocket server** — small Docker service on port 3004; optional LevelDB persistence so rooms survive restarts
+### ✅ Task 3 — Chat component
 
-### Task 3 — Chat component
+Workspace-scoped real-time chat via WebSocket. No CRDT — simple broadcast.
 
-Workspace-scoped real-time chat. No CRDT needed — append-only broadcast.
+**Bridge (`src/bridge/server.ts`):**
+- `ws` package; `WebSocketServer` attached to the HTTP server with `noServer: true`
+- `/chat?workspace=<name>&user=<login>` upgrade path; rooms are `Map<WebSocket, username>` keyed by workspace name
+- Broadcasts `{ type: 'message'|'join'|'leave', user, text?, ts }` to all room members
+- Server echoes sender's own messages (no local optimistic echo on the client)
 
-- **Bridge:** WebSocket room handler (`ws` package) keyed by workspace name; messages broadcast to all connected members; optionally appended to `data/chat.jsonl`
-- **epoch-web:** `ChatPanel.tsx` — message list + input; connects to bridge WebSocket on workspace entry; shows avatar + username from session; available as a slide-in panel or drawer tab
+**epoch-web:**
+- `ActivityBar.tsx` — `SidebarMode` extended to `'nodes' | 'files' | 'chat'`; speech-bubble icon button added
+- `ChatPanel.tsx` — connects to `ws://host:3002/chat`; green/red connection dot; own messages styled differently; join/leave shown as system events; Enter to send, Shift+Enter for newline
+- `AnalyticalLayout.tsx` + `FocusLayout.tsx` — render `ChatPanel` in the left sidebar slot when `sidebarMode === 'chat'`
 
 ---
 
