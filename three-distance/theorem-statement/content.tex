@@ -1,0 +1,37 @@
+\section*{Theorem Statement}
+
+\begin{quote}
+\textbf{Three-Distance Theorem} (S\'os, Suranyi, Świerczkowski, 1958).\\
+Let $\alpha \in \mathbb{R} \setminus \mathbb{Q}$ and $n \geq 1$. Define
+\[
+  S_n(\alpha) \;=\; \bigl\{\, \{k\alpha\} : 1 \le k \le n \,\bigr\} \;\subset\; [0,1).
+\]
+When $[0,1)$ is partitioned into $n$ half-open intervals by the $n$ points of
+$S_n(\alpha)$, the lengths of these intervals take \textbf{at most three distinct
+values} $\lambda_1 < \lambda_2 < \lambda_3$. Furthermore, if all three values
+occur then
+\[
+  \lambda_3 \;=\; \lambda_1 + \lambda_2.
+\]
+\end{quote}
+
+\subsection*{Notation and conventions}
+
+\begin{itemize}
+  \item We identify $[0,1)$ with the unit circle $\mathbb{R}/\mathbb{Z}$; gaps
+        are measured as arc lengths modulo~1.
+  \item The $n$ points divide the circle into exactly $n$ arcs. (The point~$0$
+        is \emph{not} included in $S_n(\alpha)$, so $0$ and $1$ are not
+        artificially separated.)
+  \item The three lengths depend on both $\alpha$ and $n$; they are determined
+        by the continued-fraction expansion of $\alpha$ (see the \emph{Examples}
+        node for the $\alpha = \varphi^{-1}$ case).
+\end{itemize}
+
+\subsection*{Equivalent formulation on the circle}
+
+Let $R_\alpha : x \mapsto x + \alpha \pmod{1}$ be the irrational rotation by
+$\alpha$. Then $S_n(\alpha) = \{R_\alpha(0), R_\alpha^2(0), \ldots, R_\alpha^n(0)\}$
+is the orbit of $0$ under the first $n$ iterates. The theorem says that the
+induced partition of the circle into $n$ arcs has gap-length multiplicity at
+most~3, regardless of $n$.

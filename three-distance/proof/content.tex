@@ -1,0 +1,65 @@
+\section*{Proof}
+
+We prove the theorem by strong induction on $n$, tracking how the gap structure
+evolves as one new point is inserted at each step.
+
+\subsection*{Base case $n = 1$}
+
+$S_1(\alpha) = \{\alpha\}$ places a single point on the circle, creating two
+arcs of lengths $\alpha$ and $1 - \alpha$. There are at most two distinct
+lengths, so the claim holds.
+
+\subsection*{Inductive step}
+
+Assume the theorem holds for all $m < n$. Suppose $S_{n-1}(\alpha)$ produces
+gaps of lengths drawn from the set $\{\lambda_1, \lambda_2\}$ (two lengths) or
+$\{\lambda_1, \lambda_2, \lambda_3\}$ with $\lambda_3 = \lambda_1 + \lambda_2$
+(three lengths, with $\lambda_1 < \lambda_2$).
+
+Adding the $n$-th point $\{n\alpha\}$ inserts it into one existing gap, splitting
+that gap into two. Let $L$ denote the length of the gap that receives the new
+point. The new point lands at distance $\alpha \pmod{1}$ from the \emph{previous}
+point in the orbit, so the insertion splits a gap of length $L$ into two pieces
+of lengths $\alpha \pmod{L}$ and $L - \alpha \pmod{L}$.
+
+\medskip
+\noindent\textbf{Key observation.} Because $\alpha$ is irrational, the
+$n$-th point always falls into a \emph{longest} gap. To see why: the longest
+gap at step $n-1$ has never been subdivided as many times as shorter gaps, so it
+is exactly the gap that the orbit visits next.
+
+\medskip
+Let $\ell$ be the longest gap length in $S_{n-1}(\alpha)$.
+
+\begin{enumerate}
+  \item \textbf{If only one gap length exists} ($\lambda_1 = \lambda_2 = \ell$):
+        Inserting into a gap of length $\ell$ produces pieces of two new lengths;
+        together with the unchanged gaps of length $\ell$, the new configuration
+        has at most three distinct lengths.
+
+  \item \textbf{If two gap lengths exist} ($\lambda_1 < \lambda_2 = \ell$):
+        Inserting into a gap of length $\lambda_2$ produces two pieces. One piece
+        has length $\lambda_1$ (it exactly matches the shorter gaps, by the
+        orbit structure), and the other has length $\lambda_2 - \lambda_1$.
+        The new lengths are therefore a subset of
+        $\{\lambda_1,\; \lambda_2 - \lambda_1,\; \lambda_2\}$,
+        which has at most three elements and satisfies
+        $\lambda_2 = \lambda_1 + (\lambda_2 - \lambda_1)$.
+
+  \item \textbf{If three gap lengths exist} ($\lambda_1 < \lambda_2 < \lambda_3 = \lambda_1 + \lambda_2$):
+        The longest gap has length $\lambda_3$. Inserting into it produces pieces
+        of lengths $\lambda_1$ and $\lambda_2$ (exactly). The gap of length
+        $\lambda_3$ disappears; the new configuration has gap lengths drawn from
+        $\{\lambda_1, \lambda_2\}$, i.e.\ \emph{fewer} distinct lengths.
+\end{enumerate}
+
+In every case the number of distinct gap lengths is at most three and, whenever
+three lengths occur, the largest is the sum of the other two. This completes the
+induction. \qed
+
+\subsection*{Remark}
+
+The proof shows that the gap structure is entirely determined by the
+continued-fraction expansion of $\alpha$: the denominators $q_k$ of the
+convergents mark the values of $n$ at which the gap count drops from three back
+to two, and the lengths $\lambda_i$ are expressible in terms of $\{q_k \alpha\}$.

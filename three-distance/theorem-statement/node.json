@@ -1,0 +1,9 @@
+{
+  "title": "Theorem Statement",
+  "status": "Theorem",
+  "description": "Formal statement of the three-distance theorem with notation.",
+  "tags": ["theorem", "gaps", "irrational-rotation"],
+  "validationPath": [
+    { "nodePath": "introduction", "title": "Introduction", "status": "Theorem" }
+  ]
+}

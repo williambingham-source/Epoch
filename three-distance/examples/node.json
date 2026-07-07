@@ -1,0 +1,9 @@
+{
+  "title": "Examples",
+  "status": "Theorem",
+  "description": "Worked examples with α = golden ratio and α = √2, showing the three gap lengths explicitly.",
+  "tags": ["examples", "golden-ratio", "continued-fractions"],
+  "validationPath": [
+    { "nodePath": "proof", "title": "Proof", "status": "Theorem" }
+  ]
+}

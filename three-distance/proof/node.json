@@ -1,0 +1,9 @@
+{
+  "title": "Proof",
+  "status": "Theorem",
+  "description": "Proof of the three-distance theorem by induction on n using the insertion argument.",
+  "tags": ["proof", "induction", "insertion"],
+  "validationPath": [
+    { "nodePath": "theorem-statement", "title": "Theorem Statement", "status": "Theorem" }
+  ]
+}

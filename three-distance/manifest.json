@@ -1,0 +1,10 @@
+{
+  "id": "3d157a2e-8b4f-4c9a-a031-7e6f9d2c1b8a",
+  "name": "Three-Distance Problem",
+  "description": "A study of the three-distance theorem: for any irrational α and integer n, the points {kα} on the unit circle create at most three distinct gap lengths.",
+  "author": {
+    "name": "William Bingham",
+    "email": "william.bingham@gmail.com"
+  },
+  "createdAt": "2026-07-06T00:00:00.000Z"
+}
