@@ -3,7 +3,7 @@
 # The bridge must run on the host (not in Docker) because Docker containers
 # have no outbound internet access on this machine (Windows Firewall / WSL2).
 param(
-    [string]$Workspace = "$PSScriptRoot\three-distance"
+    [string]$Workspace = "C:\Users\The Binghams\OneDrive\Desktop\Sample Workspaces\william\getting-started"
 )
 
 Set-StrictMode -Version Latest

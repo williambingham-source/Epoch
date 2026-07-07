@@ -2,7 +2,7 @@
 # Terminal 2: run this to bring up the Docker stack (Gitea, Excalidraw, Ollama, epoch-web).
 # Start the bridge first in Terminal 1: .\start-bridge.ps1
 param(
-    [string]$Workspace = "$PSScriptRoot\three-distance",
+    [string]$Workspace = "C:\Users\The Binghams\OneDrive\Desktop\Sample Workspaces\william\getting-started",
     [switch]$Build,
     [switch]$Down
 )

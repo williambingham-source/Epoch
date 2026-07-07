@@ -8,9 +8,9 @@ interface Props {
 }
 
 const MODES: { id: LayoutMode; label: string; title: string }[] = [
-  { id: 'analytical', label: 'A', title: 'Analytical — 3-column' },
-  { id: 'focus',      label: 'B', title: 'Focus — centered editor' },
-  { id: 'navigator',  label: 'C', title: 'Navigator — card grid' },
+  { id: 'analytical', label: 'Analytical', title: 'Analytical — 3-column' },
+  { id: 'focus',      label: 'Focus',      title: 'Focus — centered editor' },
+  { id: 'navigator',  label: 'Navigator',  title: 'Navigator — card grid' },
 ];
 
 export default function LayoutTabs({ mode, onChange }: Props) {
@@ -33,7 +33,6 @@ export default function LayoutTabs({ mode, onChange }: Props) {
           gap: 1px;
         }
         .lt-btn {
-          width: 26px;
           height: 22px;
           display: flex;
           align-items: center;
@@ -43,10 +42,10 @@ export default function LayoutTabs({ mode, onChange }: Props) {
           border-radius: 4px;
           font-size: 11px;
           font-weight: 600;
-          letter-spacing: 0.5px;
-          padding: 0;
+          padding: 0 8px;
           border: 1px solid transparent;
           position: relative;
+          white-space: nowrap;
         }
         .lt-btn:hover { color: var(--text); background: var(--surface2); }
         .lt-btn.active {
