@@ -352,6 +352,24 @@ Stable deployment for a team or public use.
 - One-click restore from bundle file
 - Outbound webhook on compile success (Slack, email)
 
+### User signup and onboarding
+
+Currently a new user requires two manual steps: register a Gitea account at the Gitea URL, then sign into Epoch via OAuth. There is no "sign up" entry point on the Epoch home screen, and no onboarding beyond a blank workspace.
+
+**Friction points to address:**
+- Gitea self-registration is a separate URL the user must know in advance; if self-registration is disabled (recommended for production) an admin must create the account first
+- No invite-link flow — no way to say "click this to join workspace X"
+- With WireGuard, a user also needs a VPN config before they can reach any URL
+- No onboarding checklist or guided first-workspace creation
+
+**Options to resolve:**
+- **Admin-creates-user** (simplest) — disable Gitea self-registration; admin creates Gitea accounts; users just OAuth into Epoch. Sufficient for a small known team.
+- **Invite link** — admin generates a signed invite URL; new user clicks it, lands on Gitea registration pre-filled, then is redirected back to Epoch and auto-joined to a specified workspace.
+- **Epoch-managed accounts** — add a local user table, decouple from Gitea for identity (Gitea becomes optional git backend only). More work; only needed if Gitea is too heavy for the use case.
+
+**WireGuard + onboarding combined:**
+An invite flow would ideally bundle the VPN config + Epoch URL + registration link in a single package (e.g. a QR code or a zip with instructions).
+
 ---
 
 ## Infrastructure Evolution
