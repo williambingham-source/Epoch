@@ -55,11 +55,9 @@ export default function ChatPanel({ workspaceName }: Props) {
   const send = useCallback(() => {
     const text = input.trim();
     if (!text || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
-    // Echo own message immediately
-    setMessages((prev) => [...prev.slice(-499), { type: 'message', user: username, text, ts: Date.now() }]);
     wsRef.current.send(text);
     setInput('');
-  }, [input, username]);
+  }, [input]);
 
   const handleKey = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
