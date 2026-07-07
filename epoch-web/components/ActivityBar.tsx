@@ -1,6 +1,6 @@
 'use client';
 
-export type SidebarMode = 'nodes' | 'files';
+export type SidebarMode = 'nodes' | 'files' | 'chat';
 
 interface Props {
   sidebarMode: SidebarMode;
@@ -21,6 +21,7 @@ export default function ActivityBar({ sidebarMode, panelOpen, onSidebarMode, onT
 
   const nodesActive = sidebarMode === 'nodes' && panelOpen;
   const filesActive = sidebarMode === 'files' && panelOpen;
+  const chatActive  = sidebarMode === 'chat'  && panelOpen;
 
   return (
     <div className="activity-bar">
@@ -29,7 +30,6 @@ export default function ActivityBar({ sidebarMode, panelOpen, onSidebarMode, onT
         onClick={() => handleClick('nodes')}
         title="Node Explorer (E)"
       >
-        {/* tree / hierarchy icon */}
         <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <rect x="1" y="1" width="5" height="4" rx="1"/>
           <rect x="8" y="7" width="5" height="4" rx="1"/>
@@ -46,9 +46,18 @@ export default function ActivityBar({ sidebarMode, panelOpen, onSidebarMode, onT
         onClick={() => handleClick('files')}
         title="File Explorer (F)"
       >
-        {/* folder icon */}
         <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M2 6.5A1.5 1.5 0 0 1 3.5 5H8l1.5 2H16.5A1.5 1.5 0 0 1 18 8.5v7A1.5 1.5 0 0 1 16.5 17h-13A1.5 1.5 0 0 1 2 15.5V6.5z"/>
+        </svg>
+      </button>
+
+      <button
+        className={`ab-btn${chatActive ? ' active' : ''}`}
+        onClick={() => handleClick('chat')}
+        title="Workspace Chat"
+      >
+        <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M2 4.5A1.5 1.5 0 0 1 3.5 3h13A1.5 1.5 0 0 1 18 4.5v8A1.5 1.5 0 0 1 16.5 14H11l-3 3v-3H3.5A1.5 1.5 0 0 1 2 12.5v-8z"/>
         </svg>
       </button>
 

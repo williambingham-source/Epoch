@@ -2,6 +2,7 @@
 
 import Sidebar from '@/components/Sidebar';
 import FileManager from '@/components/FileManager';
+import ChatPanel from '@/components/ChatPanel';
 import ActivityBar from '@/components/ActivityBar';
 import BreadcrumbBar from '@/components/BreadcrumbBar';
 import LayoutTabs from '@/components/LayoutTabs';
@@ -43,6 +44,8 @@ export default function AnalyticalLayout(p: LayoutProps) {
                 onRename={p.onRename}
                 workspaceName={p.workspaceName}
               />
+            ) : p.sidebarMode === 'chat' ? (
+              <ChatPanel workspaceName={p.workspaceName} />
             ) : (
               <FileManager />
             )}

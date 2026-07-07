@@ -11,10 +11,12 @@
  * all workspace folders.  Defaults to the parent of WORKSPACE_DIR.  Clients send
  * an  x-workspace: <folder-name>  header to select a workspace per-request.
  */
+import { createServer } from 'http';
 import express from 'express';
 import cors from 'cors';
 import * as path from 'path';
 import { access } from 'fs/promises';
+import { WebSocketServer, WebSocket } from 'ws';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 
 import { nodesRouter } from './routes/nodes.js';
@@ -149,8 +151,57 @@ if (process.argv.includes('--mcp-stdio')) {
     await transport.handlePostMessage(req, res);
   });
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[epoch-bridge] REST + MCP SSE listening on 0.0.0.0:${PORT}`);
+  // ── WebSocket chat ────────────────────────────────────────────────────────
+  // One room per workspace name. Rooms are plain broadcast — no CRDT needed.
+  // Clients connect to ws://host:3002/chat?workspace=<name>&user=<login>
+  const wss = new WebSocketServer({ noServer: true });
+  // room key → Map<socket, username>
+  const chatRooms = new Map<string, Map<WebSocket, string>>();
+
+  function broadcast(room: Map<WebSocket, string>, payload: object, exclude?: WebSocket) {
+    const msg = JSON.stringify(payload);
+    for (const [client] of room) {
+      if (client !== exclude && client.readyState === WebSocket.OPEN) client.send(msg);
+    }
+  }
+
+  wss.on('connection', (ws, req) => {
+    const url = new URL(req.url ?? '/', `http://localhost`);
+    const workspace = url.searchParams.get('workspace') ?? 'default';
+    const user = (url.searchParams.get('user') ?? 'anonymous').slice(0, 64);
+
+    if (!chatRooms.has(workspace)) chatRooms.set(workspace, new Map());
+    const room = chatRooms.get(workspace)!;
+    room.set(ws, user);
+
+    broadcast(room, { type: 'join', user, ts: Date.now() }, ws);
+
+    ws.on('message', (data) => {
+      const text = data.toString().slice(0, 2000);
+      broadcast(room, { type: 'message', user, text, ts: Date.now() });
+    });
+
+    ws.on('close', () => {
+      room.delete(ws);
+      broadcast(room, { type: 'leave', user, ts: Date.now() });
+      if (room.size === 0) chatRooms.delete(workspace);
+    });
+
+    ws.on('error', () => { ws.terminate(); });
+  });
+
+  const server = createServer(app);
+  server.on('upgrade', (req, socket, head) => {
+    const url = new URL(req.url ?? '/', `http://localhost`);
+    if (url.pathname === '/chat') {
+      wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req));
+    } else {
+      socket.destroy();
+    }
+  });
+
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`[epoch-bridge] REST + MCP SSE + WS chat on 0.0.0.0:${PORT}`);
     console.log(`[epoch-bridge] default workspace : ${WORKSPACE_DIR}`);
     console.log(`[epoch-bridge] workspaces base   : ${WORKSPACES_BASE_DIR}`);
     console.log(`[epoch-bridge] vision provider   : ${process.env['VISION_PROVIDER'] ?? 'anthropic'}`);
