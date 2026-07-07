@@ -67,6 +67,19 @@ services:
       retries: 12
       start_period: 30s
 
+  epoch-collab:
+    build:
+      context: ./collab
+    container_name: epoch-collab
+    ports:
+      - "3004:3004"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:3004"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
   # epoch-bridge runs on the HOST (not in Docker) so it can reach cloud vision APIs.
   # Start it via start-epoch.ps1 which sets env vars and launches dist/bridge/server.js.
 
