@@ -88,6 +88,37 @@ export function nodesRouter(workspaceDir: string): Router {
     }
   });
 
+  // GET /api/nodes/:encodedPath/canvas — serve data/canvas.excalidraw if it exists
+  router.get('/:encodedPath/canvas', async (req, res) => {
+    try {
+      const nodePath = decodeURIComponent(req.params['encodedPath'] ?? '');
+      const canvasPath = path.join(workspaceDir, nodePath, 'data', 'canvas.excalidraw');
+      const buf = await fs.readFile(canvasPath, 'utf-8');
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.send(buf);
+    } catch {
+      res.status(404).json({ error: 'No saved canvas' });
+    }
+  });
+
+  // POST /api/nodes/:encodedPath/canvas — save data/canvas.excalidraw
+  router.post('/:encodedPath/canvas', async (req, res) => {
+    try {
+      const nodePath = decodeURIComponent(req.params['encodedPath'] ?? '');
+      const dataDir = path.join(workspaceDir, nodePath, 'data');
+      await fs.mkdir(dataDir, { recursive: true });
+      await fs.writeFile(
+        path.join(dataDir, 'canvas.excalidraw'),
+        JSON.stringify(req.body, null, 2),
+        'utf-8',
+      );
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
   // GET /api/nodes/:encodedPath — single node metadata + latex
   router.get('/:encodedPath', async (req, res) => {
     try {

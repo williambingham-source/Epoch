@@ -291,10 +291,17 @@ export default function WorkspaceHome() {
         )}
 
         {!giteaLoading && giteaError && sessionStatus === 'authenticated' && (
-          <div className="wh-error wh-error-sm">
-            Gitea not reachable — {giteaError}
-            <button className="wh-retry" style={{ marginLeft: 8 }} onClick={loadGitea}>Retry</button>
-          </div>
+          giteaError.includes('401') ? (
+            <p className="wh-muted">
+              Session expired —{' '}
+              <a href="/api/auth/signin" className="wh-link">Sign in again</a> to reconnect Gitea.
+            </p>
+          ) : (
+            <div className="wh-error wh-error-sm">
+              Gitea not reachable — {giteaError}
+              <button className="wh-retry" style={{ marginLeft: 8 }} onClick={loadGitea}>Retry</button>
+            </div>
+          )
         )}
 
         {!giteaLoading && !giteaError && unclonedRepos.length === 0 && (

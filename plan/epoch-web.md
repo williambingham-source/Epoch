@@ -285,25 +285,38 @@ Gitea already manages user accounts, repo permissions, and git credentials. Usin
 ---
 
 ## Phase 4 — Collaboration
-*~10 weeks · shared editing, presence, review workflow*
+*Excalidraw library embed + canvas persistence + chat · scoped 2026-07-06*
 
-Multiple users can edit the same workspace simultaneously. Conflicts are rare because nodes are independent files; git remains the persistent sync layer.
+Focused scope: replace the Excalidraw iframe with the `@excalidraw/excalidraw` React library for full control, add per-node canvas persistence, real-time multiplayer on the canvas, and a workspace-scoped chat panel. Monaco/LaTeX editing stays single-user (last-write-wins via git).
 
-### Shared Monaco editing
+### Task 1 — Excalidraw library embed + persistence
 
-- **Yjs** CRDT for shared document state
-- **y-monaco** binding — live cursors, selections, and edits in the same `.tex` file
-- **y-websocket** server (embedded in Next.js via `ws`, or as a small sidecar)
-- Each node's `content.tex` is one Yjs document keyed by node path
-- On disconnect: Yjs state flushed to disk and committed via git
+Replace `CanvasPanel.tsx` iframe with `@excalidraw/excalidraw` React component.
 
-### Shared canvas and presence
+**Bridge endpoints (nodes.ts):**
+- `GET /api/nodes/:path/canvas` — reads `data/canvas.excalidraw` (JSON), 404 if none
+- `POST /api/nodes/:path/canvas` — writes `data/canvas.excalidraw`
 
-- Excalidraw's built-in multiplayer wired to the same y-websocket room
-- Presence sidebar: avatars showing which node each user is currently viewing or editing
-- Review workflow UI: `createReview` and `submitDecision` already exist in the backend — add browser forms
-- Compile events broadcast to all session members over WebSocket
-- Optional per-node pessimistic lock for sensitive nodes
+**epoch-web:**
+- Install `@excalidraw/excalidraw`
+- `CanvasPanel.tsx` — library embed; on node select: fetch canvas state and `initialData`; `onChange` debounced 2 s → POST to bridge; flush pending save on node switch/unmount
+
+**Persistence format:** Excalidraw's native scene JSON (`{ elements, appState, files }`), plain text, git-trackable, stored at `<workspaceDir>/<nodePath>/data/canvas.excalidraw`.
+
+### Task 2 — Excalidraw multiplayer (Yjs)
+
+Add a `y-websocket` Docker service. Each node's canvas gets its own Yjs room.
+
+- **Room ID:** `<user>/<workspace>/<nodePath>` — stable, unique per node
+- **`CanvasPanel.tsx`** — on mount, join Yjs room; sync Excalidraw scene via `Y.Map`; `onChange` updates Yjs + debounced persistence; remote Yjs update → `updateScene()`
+- **y-websocket server** — small Docker service on port 3004; optional LevelDB persistence so rooms survive restarts
+
+### Task 3 — Chat component
+
+Workspace-scoped real-time chat. No CRDT needed — append-only broadcast.
+
+- **Bridge:** WebSocket room handler (`ws` package) keyed by workspace name; messages broadcast to all connected members; optionally appended to `data/chat.jsonl`
+- **epoch-web:** `ChatPanel.tsx` — message list + input; connects to bridge WebSocket on workspace entry; shows avatar + username from session; available as a slide-in panel or drawer tab
 
 ---
 

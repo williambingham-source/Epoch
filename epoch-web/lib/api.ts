@@ -298,6 +298,33 @@ function fileToBase64(file: File): Promise<string> {
 }
 
 // ---------------------------------------------------------------------------
+// Canvas (workspace-scoped)
+// ---------------------------------------------------------------------------
+
+export interface ExcalidrawScene {
+  elements: unknown[];
+  appState?: Record<string, unknown>;
+  files?: Record<string, unknown>;
+}
+
+/** Load saved canvas for a node. Returns null if none saved yet. */
+export async function getNodeCanvas(nodePath: string): Promise<ExcalidrawScene | null> {
+  const res = await fetch(`${_apiBase}/nodes/${encodeURIComponent(nodePath)}/canvas`);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+/** Persist the current canvas scene for a node. */
+export async function saveNodeCanvas(nodePath: string, scene: ExcalidrawScene): Promise<void> {
+  await apiFetch(`${_apiBase}/nodes/${encodeURIComponent(nodePath)}/canvas`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(scene),
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Git history (workspace-scoped)
 // ---------------------------------------------------------------------------
 

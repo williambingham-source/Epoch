@@ -116,7 +116,7 @@ export default function ContentArea({
           <PdfPanel pdfUrl={pdfUrl} compiling={compiling} error={compileError} />
         )}
         {contentTab === 'canvas' && (
-          <CanvasPanel key={selectedPath ?? 'workspace'} />
+          <CanvasPanel key={selectedPath ?? 'workspace'} nodePath={selectedPath} />
         )}
         {contentTab === 'history' && (
           <GitLog nodePath={selectedPath} />
@@ -169,6 +169,7 @@ export default function ContentArea({
           display: flex;
           flex-direction: column;
           min-height: 0;
+          position: relative;
         }
         .ca-message {
           flex: 1;
