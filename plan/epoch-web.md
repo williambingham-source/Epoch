@@ -326,6 +326,98 @@ Workspace-scoped real-time chat via WebSocket. No CRDT — simple broadcast.
 
 ---
 
+## Phase 4.5 — Formal Verification & Computation
+*Lean 4 + Mathlib proof checking · SageMath symbolic computation · not yet started*
+
+Extend Epoch nodes to carry formal proofs (Lean 4) and computational evidence (SageMath) alongside their LaTeX exposition. Both tools run in Docker; the bridge pattern from pdflatex applies directly.
+
+### Design principle
+
+Lean and Sage are **supplementary, not mandatory** by default. A node can reach Theorem status through peer review alone (current flow). Lean verification is an optional stronger signal — a "formally verified" badge on top of the existing status system. This keeps the workflow accessible to researchers who aren't Lean users while rewarding those who go the extra step.
+
+A future toggle could make Lean verification a hard requirement for Theorem status per workspace (opt-in strictness).
+
+---
+
+### Task 1 — Lean 4 / Mathlib proof checking
+
+Each node can optionally carry a formal proof at `data/proof.lean`.
+
+**Infrastructure:**
+- Docker image: `leanprover/lean4:latest` for basic Lean; a Mathlib-enabled image (e.g. `ghcr.io/leanprover-community/mathlib4`) for Mathlib imports — ~4 GB, pulled once
+- `lake` is Lean's build system; for single-file checking `lean --check data/proof.lean` is sufficient without a full lake project
+- For Mathlib imports a minimal `lakefile.lean` + `lean-toolchain` must accompany the `.lean` file — bridge generates these on demand
+
+**Bridge (`src/bridge/routes/`):**
+- `POST /api/nodes/:path/lean/check` — copies `data/proof.lean` into a temp Docker workspace, runs `lean --check`, returns `{ ok: bool, errors: [{line, col, message}] }`
+- `GET /api/nodes/:path/lean` — reads `data/proof.lean` (404 if absent)
+- `PUT /api/nodes/:path/lean` — writes `data/proof.lean`, git-commits
+
+**epoch-web:**
+- **Lean tab** added to ContentArea (alongside LaTeX / PDF / Canvas / History)
+- Monaco editor with Lean syntax highlighting (community grammar exists)
+- Run button → calls bridge check endpoint → inline error markers
+- Node header badge: `✓ Lean` (green, verified) / `✗ Lean` (red, errors) / nothing (no proof file)
+- On verification success, bridge optionally auto-commits with message `lean: proof verified`
+
+**Key decision — Mathlib vs bare Lean:**
+Mathlib is essential for serious mathematics (number theory, analysis, algebra) but the Docker image is large and slow to pull. Strategy: try `lean --check` with the bare image first; if the file imports Mathlib, re-run with the Mathlib image. Cache the Mathlib image after first pull.
+
+---
+
+### Task 2 — SageMath symbolic computation
+
+One-shot computations and a persistent REPL for exploring mathematics numerically and symbolically.
+
+**Infrastructure:**
+- Docker image: `sagemath/sagemath:latest` — ~3 GB
+- One-shot mode: `docker run --rm sagemath/sagemath sage -c "<code>"` — fast, stateless
+- Persistent kernel: Sage can run as a Jupyter kernel; bridge manages kernel lifecycle per workspace session
+
+**Bridge:**
+- `POST /api/sage/run` — runs a Sage snippet, returns `{ output: string, latex: string | null, error: string | null }`; `latex` is populated if the output contains a valid `latex(...)` result
+- Sage output can be plain text, LaTeX, or an image (PNG via `plot(...).save(...)`)
+- `POST /api/sage/plot` — runs a Sage plot command, returns PNG as base64; can be inserted into node `data/` as a figure
+
+**epoch-web:**
+- **Sage panel** — slide-in right sidebar (like EpochPanel) or new ContentArea tab
+- Input cell (textarea) + Run button
+- Output area: plain text, rendered LaTeX (via KaTeX), or image
+- "Insert LaTeX" button — appends `sage`-generated LaTeX into the active node's `content.tex` at cursor
+- "Save figure" button — writes the plot PNG to `data/<name>.png` in the current node
+
+**Workflow example (three-distance):**
+```python
+# Verify gap structure for α = golden ratio, n = 8
+from itertools import accumulate
+alpha = (sqrt(5) - 1) / 2
+pts = sorted([frac(k * alpha) for k in range(1, 9)])
+gaps = [pts[i+1] - pts[i] for i in range(7)] + [1 + pts[0] - pts[-1]]
+set(gaps)   # → {1/φ³, 1/φ⁴, 1/φ⁵}  (three distinct values)
+```
+
+---
+
+### Task 3 — Cross-tool node view
+
+Surface all three artefacts (LaTeX prose, Lean proof, Sage computation) in a unified node view.
+
+- ContentArea **Math** tab (replaces or extends the LaTeX tab): split pane with LaTeX editor on the left, Lean proof editor on the right, Sage REPL below
+- **Node summary card** in NavigatorLayout shows: status badge + `✓ Lean` badge + last Sage run timestamp
+- **Compile** can optionally include Sage output as a `\subsection*{Computational verification}` block auto-appended to the node's PDF section
+- Export: `git bundle` includes `.lean` and any Sage-generated figures alongside `content.tex`
+
+---
+
+### Infrastructure notes
+
+- Both Lean and Sage Docker images are large (3–4 GB each). Pull on first use, warn the user it may take a while.
+- Lean checking can be slow (tens of seconds for Mathlib proofs). Run asynchronously; poll for result.
+- Sage one-shot runs are fast (<2 s for simple computations). Persistent kernel adds state but complicates lifecycle management — start with one-shot.
+- Neither tool requires changes to the Docker Compose stack for basic use; bridge spawns containers on demand the same way pdflatex does.
+
+---
+
 ## Phase 5 — Production
 *Ongoing · HTTPS, rate limiting, admin tooling, backup*
 

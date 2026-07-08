@@ -5,6 +5,8 @@ import NodeHeader from './NodeHeader';
 import PdfPanel from './PdfPanel';
 import CanvasPanel from './CanvasPanel';
 import GitLog from './GitLog';
+import LeanPanel from './LeanPanel';
+import SagePanel from './SagePanel';
 import type { ContentTab } from '@/layouts/types';
 import type { NodeSummary, ValidationPathEntry } from '@/lib/api';
 
@@ -41,6 +43,8 @@ const TABS: { id: ContentTab; label: string }[] = [
   { id: 'pdf',     label: 'PDF'     },
   { id: 'canvas',  label: 'Canvas'  },
   { id: 'history', label: 'History' },
+  { id: 'lean',    label: 'Lean 4'  },
+  { id: 'sage',    label: 'Sage'    },
 ];
 
 const SAVE_LABEL:  Record<string, string> = { saved: 'Saved', saving: 'Saving…', unsaved: 'Unsaved', error: 'Error' };
@@ -120,6 +124,12 @@ export default function ContentArea({
         )}
         {contentTab === 'history' && (
           <GitLog nodePath={selectedPath} />
+        )}
+        {contentTab === 'lean' && (
+          <LeanPanel nodePath={selectedPath} />
+        )}
+        {contentTab === 'sage' && (
+          <SagePanel nodePath={selectedPath} />
         )}
       </div>
 

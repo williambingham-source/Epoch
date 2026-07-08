@@ -2,7 +2,7 @@ import type { NodeSummary, ValidationPathEntry } from '@/lib/api';
 import type { SidebarMode } from '@/components/ActivityBar';
 
 export type LayoutMode = 'analytical' | 'focus' | 'navigator';
-export type ContentTab = 'editor' | 'pdf' | 'canvas' | 'history';
+export type ContentTab = 'editor' | 'pdf' | 'canvas' | 'history' | 'lean' | 'sage';
 
 export interface LayoutProps {
   // workspace

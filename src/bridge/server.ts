@@ -25,6 +25,8 @@ import { compileRouter } from './routes/compile.js';
 import { compilePngRouter } from './routes/compilePng.js';
 import { convertRouter } from './routes/convert.js';
 import { pdfRouter } from './routes/pdf.js';
+import { leanRouter } from './routes/lean.js';
+import { sageRouter } from './routes/sage.js';
 import { providersRouter } from './routes/providers.js';
 import { workspacesRouter } from './routes/workspaces.js';
 import { settingsRouter } from './routes/settings.js';
@@ -127,6 +129,8 @@ if (process.argv.includes('--mcp-stdio')) {
   app.use('/api/compile-png', withWorkspace(compilePngRouter));
   app.use('/api/convert', withWorkspace(convertRouter));
   app.use('/api/pdf', withWorkspace(pdfRouter));
+  app.use('/api/lean', withWorkspace(leanRouter));
+  app.use('/api/sage', withWorkspace(sageRouter));
   app.use('/api/providers', providersRouter());
 
   // MCP SSE transport — always uses the default WORKSPACE_DIR (for Claude Code)
